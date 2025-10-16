@@ -1,0 +1,82 @@
+#!/bin/bash
+set -f
+
+sender=my_account@gmail.com
+gapp=tfoxgnbygggtel
+
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 [-s subject] email [-a attachment_file]"
+  exit
+fi
+
+while [[ $# > 0 ]]; do
+   case "$1" in
+      -s) sub="$2" ; shift ;;
+      -a) file="$2" ; shift ;;
+     *@*) receiver="--mail-rcpt "$1" "$receiver ; shift ;;
+       *) shift ;;
+  esac
+done
+
+#echo "sub="$sub
+#echo "receiver="$receiver
+receiver_=$(sed 's/--mail-rcpt //g' <<< $receiver)
+#echo "receiver_="$receiver_
+#echo "file="$file
+
+msg=$(cat; echo x)
+msg=${msg%x}
+#printf %s "$msg"
+#echo "$msg"
+
+
+html_msg="<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html'>
+<title>SQL*Plus Output</title>
+<style> html { font-family: consolas, monospace; font-size: 9pt; background-color: #dce1e9; } table, td, th { text-align: left; vertical-align: top; border: 1px solid #808090; background: white; padding: .5em .6em; } table { border-collapse: collapse; margin-top: 1.2em; /* space above table itself */ margin-bottom: 1.2em; border-width: 3px; margin-bottom: 1em; } td { margin: .2em; font-size: 80%; } th { background: #f0f4fd; font-weight: bold; font-size: 95%; margin: .2em; padding-bottom: .4em; } </style>
+</head>
+<body>
+<pre>
+${msg}
+</pre>
+</body>
+</html>"
+
+if [ -z "$file" ]; then 
+    #    --mail-rcpt $receiver \
+    curl -s --url 'smtps://smtp.gmail.com:465' --ssl-reqd \
+    --mail-from $sender \
+    $receiver \
+    --user $sender:$gapp \
+    -H "Subject: $sub" -H "From: $sender" -H "To: $receiver_" \
+     -T <(echo -e "From: ${sender}
+To: ${receiver_}
+Subject:${sub}
+Content-Type: text/html
+${html_msg}"
+)
+echo "Mail sent."
+
+else
+    tmp="/tmp/tmp_$$.html"
+    echo -e "$html_msg" > $tmp
+
+    HOPTS+=("-H"); HOPTS+=("From: ${sender}"); 
+    HOPTS+=("-H"); HOPTS+=("To: ${receiver_}"); 
+    HOPTS+=("-H"); HOPTS+=("Subject: ${sub}");
+
+    # attachment exists condition
+    # MIME type for multiple type of input file extensions
+    #    --mail-rcpt $receiver\
+    MIMEType=`file --mime-type "$file" | sed 's/.*: //'`
+    curl -s --url 'smtps://smtp.gmail.com:465' --ssl-reqd \
+    --mail-from $sender \
+    $receiver \
+    --user $sender:$gapp \
+    -F '=(;type=multipart/mixed' -F "=<$tmp;type=text/html;encoder=base64" -F "file=@$file;type=$MIMEType;encoder=base64" -F '=)' \
+    "${HOPTS[@]}"
+rm $tmp
+echo "Mail sent."
+fi
+

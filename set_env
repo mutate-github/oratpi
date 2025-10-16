@@ -1,0 +1,26 @@
+shopt -s nocasematch
+case "$sid" in
+cft*|kik*|bd*|prov*)        [ -r ~/db12kik.env ] && source ~/db12kik.env ;;
+jet|ja)                     [ -r /etc/profile.ora ] && source /etc/profile.ora ;;
+aisutf*|unit*|crm)          [ -r ~/.ora_env ] && source ~/.ora_env ;;
+egais*|GOLD506*)            [ -r ~/.bashrc ] && source ~/.bashrc ;;
+unc*|UKVDEV)                [ -r ~/${sid}_setenv.sh ] && source ~/${sid}_setenv.sh ;;
+orcl)                       [ -r ~/orcl_setenv.sh ] && source ~/orcl_setenv.sh ; login_str="user/passwd@'(DESCRIPTION=(ADDRESS=(COMMUNITY=TCP.WORLD)(PROTOCOL=TCP)(HOST=172.16.114.26)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orcl)))'" ;;
+dbprod|dbprog)              : ;;
+hathi|PHXPRODLIKE)          [ -r ~/hathi.env ] && source ~/hathi.env ;;
+*) case $(uname | awk -F_ '{print $1}') in
+      Linux)  [ -r ~/.bash_profile ] && source ~/.bash_profile
+              rc=$(find . -maxdepth 1 -name "${sid}_setenv.sh" -print -quit)
+              if [ -n "$rc" ]; then . ~/${sid}_setenv.sh ; fi
+              ;;
+      AIX)    [ -r ~/.profile ] && source ~/.profile
+              [ -r ~/.bashrc ] && source ~/.bashrc
+              ;;
+      SunOS)  [ -r ~/.profile ] && source ~/.profile
+              sidlow=$(tr '[:upper:]' '[:lower:]' <<< $sid)
+              [ -f /adm/env.${sidlow} ] && source /adm/env.${sidlow}
+              ;;
+      *)      ;;
+   esac
+;;
+esac

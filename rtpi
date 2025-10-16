@@ -1,0 +1,39 @@
+#!/bin/bash
+set -f
+if [ "$#" -lt 1 ]; then
+  echo "Usage: $0 [SERVER] ORACLE_SID"
+  exit
+fi
+P1_="$1"
+sid="$2"
+# if [ -z "$sid" ]; then sid="$P1_"; fi
+shift
+shift
+args="$@"
+args=$(echo $args | sed -e 's|\*|\\*|g' -e 's|\$|\\$|g' -e 's|\;|\\;|g' -e 's|(|\\(|g' -e 's|)|\\)|g' -e 's|"|\\"|g' -e "s|'|\\\'|g" -e 's|<|\\<|g' -e 's|>|\\>|g' )  # Note: Must be escaped with \\ characters: * ; ' ! ( ) in rtpi.
+BASEDIR=`dirname $0`
+wtpi="$BASEDIR/tpi"
+SSHCMD="ssh -o ConnectTimeout=5 -o ServerAliveInterval=30 -o BatchMode=yes"
+SET_ENV_F="$BASEDIR/set_env"
+[ -r $SET_ENV_F ] && source $SET_ENV_F
+# echo "host: $P1_  sid: $sid  args: $args"
+#for tnsnames connection through .tpi_login file
+#format .tpi_login file: server sid encusername/encpassword@tns_alias
+BASEDIR=`dirname $0`
+if [ "$BASEDIR" = "/bin" ]; then
+  BASEDIR=`find . -type f -name .tpi_login -exec dirname {} \;`
+fi
+login_str=$(awk '{IGNORECASE=1}/^'$P1_' +'$sid' +.*/{print substr($0,index($0,$3))}' $BASEDIR/.tpi_login 2>/dev/null | head -1)
+chmod 600 $BASEDIR/.tpi_login 2>/dev/null
+# echo "rtpi_login_str: "$login_str
+
+shopt -s nocasematch
+case "${P1_}:${sid}" in
+  SRV-ORA*:dbpro*)                       cat $wtpi | $SSHCMD mp ". ~/.ora_env; /bin/bash -s $sid '" $login_str "' $args" ;;
+  aisprod:aisutf)                        $wtpi $sid $login_str $args ;;
+  ais*:*|unit*:*|alpha:*|beta:*|crm:*)   cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.ora_env; /bin/bash -s $sid $args" ;;
+  *:*)                                   cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.bash_profile ; /bin/bash -s $sid $args" ;;
+esac
+
+exit
+

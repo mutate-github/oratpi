@@ -1,0 +1,59 @@
+#!/bin/bash
+set -f
+
+sender=myaccount@yandex.ru
+gapp=frwpbyahuqw
+
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 [-s subject] email [-a attachment_file]"
+  exit
+fi
+
+while [[ $# > 0 ]]; do
+   case "$1" in
+      -s) sub="$2" ; shift ;;
+      -a) file="$2" ; shift ;;
+     *@*) receiver="--mail-rcpt "$1" "$receiver ; shift ;;
+       *) shift ;;
+  esac
+done
+
+#echo "sub="$sub
+#echo "receiver="$receiver
+receiver_=$(sed 's/--mail-rcpt //g' <<< $receiver)
+#echo "receiver_="$receiver_
+#echo "file="$file
+
+msg=$(cat; echo x)
+msg=${msg%x}
+#printf %s "$msg"
+#echo "$msg"
+
+
+if [ -z "$file" ]; then 
+    #    --mail-rcpt $receiver \
+    curl -s --url 'smtps://smtp.yandex.ru:465' --ssl-reqd \
+    --mail-from $sender \
+    $receiver \
+    --user $sender:$gapp \
+    -T <(echo -e "From: ${sender}
+To: ${receiver_}
+Subject:${sub}
+
+${msg}")
+echo "Mail sent."
+else
+    # attachment exists condition
+    # MIME type for multiple type of input file extensions
+    #    --mail-rcpt $receiver\
+    MIMEType=`file --mime-type "$file" | sed 's/.*: //'`
+    curl -s --url 'smtps://smtp.yandex.ru:465' --ssl-reqd \
+    --mail-from $sender \
+    $receiver \
+    --user $sender:$gapp \
+     -H "Subject: $sub" -H "From: $sender" -H "To: $receiver_" -F \
+    '=(;type=multipart/mixed' -F "=$msg;type=text/plain" -F \
+      "file=@$file;type=$MIMEType;encoder=base64" -F '=)'
+echo "Mail sent."
+fi
+

@@ -1,0 +1,90 @@
+#!/usr/bin/perl
+use Mail::Sender;
+use Sys::Hostname;
+
+$host=hostname;
+$smtp='mail.myserver.ru';
+# $port='587';
+$port='25';
+$auth='NTLM';
+$authdomain='myserver.local';
+$authid='oracle';
+$authpwd='passxqw123';
+$from='oracle@myserver.ru';
+
+# test protocol of mail server:
+# @protocols = $sender->QueryAuthProtocols('mail.myserver.ru');
+# print @protocols;
+# perl -MMail::Sender -e "Mail::Sender->printAuthProtocols('mail.myserver.ru')"
+
+foreach $arg (@ARGV){
+    $shift_count++;
+    if($arg eq "-s"){
+      $mode="Subject";
+      next;
+    }
+    ($mode,$to)=("",$to . "$arg, ") if $arg =~ /\@/;
+    $subject.="$arg " if $mode eq "Subject";
+
+    if($arg eq "-a"){
+      $mode="Attach";
+      next;
+      $file.="$arg ";
+    }
+    $file.="$arg" if $mode eq "Attach";
+}
+
+
+for (1..$shift_count){
+  shift;
+}
+while(<>){
+  $msg.=$_;
+}
+$to=~s/, $//;
+
+
+ref ($sender = new Mail::Sender(
+{from => "$from",
+ port => "$port",
+ smtp => "$smtp"}
+)) or die "$Mail::Sender::Error\n";
+if ($file)
+{
+(ref ($sender->MailFile({to => "$to",
+                        from => "$from",
+                        subject => "$subject - $host",
+#        ctype => 'text/plain; charset=UTF-8',
+#        ctype => 'text/html; charset=us-ascii',
+#        ctype => 'text/plain; charset=Windows-1251',
+#        ctype => 'text/plain; charset=iso-8859-5',
+#        encoding => "quoted-printable",
+        auth => "$auth",
+#  auth_encoded => 1,
+        authdomain => "$authdomain",
+        authid => "$authid",
+        authpwd => "$authpwd",
+        msg => "$msg",
+        file => $file}))
+and print "Mail sent OK.\n" ) or die "$Mail::Sender::Error\n";
+}
+else
+{
+(ref ($sender->MailMsg({to => "$to",
+                        from => "$from",
+                        subject => "$subject - $host",
+ ctype => 'text/plain; charset=UTF-8',
+# ctype => 'text/html; charset=us-ascii',
+#  ctype => 'text/plain; charset=Windows-1251',
+# ctype => 'text/plain; charset=iso-8859-5',
+  encoding => "quoted-printable",
+  auth => "$auth",
+#  auth_encoded => 1,
+  authdomain => "$authdomain",
+  authid => "$authid",
+  authpwd => "$authpwd",
+  msg => "$msg"}))
+and print "Mail sent OK.\n" ) or die "$Mail::Sender::Error\n";
+# The SMTP authentication protocol to use to login to the server currently the only ones supported are LOGIN, PLAIN, CRAM-MD5 and NTLM. Some protocols have module dependencies. CRAM-MD5 depends on Digest::HMAC_MD5 and NTLM on Authen::NTLM.
+}
+

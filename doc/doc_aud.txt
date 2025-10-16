@@ -1,0 +1,40 @@
+
+Документация: Подсистема аудита БД Oracle, использует TPI (Total Performance Insight) for Oracle
+
+Цель: Провести аудит новой БД, один скриптом получить множество параметров, показателей, отчетов и т.п.
+
+
+Краткое описание:
+
+1. Скрипты
+audit_tpi.sh - общий скрипт, содержит в себе вызов всех или части имеющихся, запускается либо с сервера где поднята БД, либо с хоста, откуда настроен доступ по ssh на сервер c БД Oracle:
+
+ "Usage: 2 or 3 parameters, last parameter is days in past:"
+ "For local oracle DB:   ./audit_tpi.sh ORACLE_SID NUM_DAYS"
+ "For remote oracle DB:  ./audit_tpi.sh my_server01 ORACLE_SID NUM_DAYS"
+
+локальный вариант запуска, если БД на текущем хосте:
+./audit_tpi.sh ORACLE_SID 3
+
+удаленный вариант запуска, если БД ORACLE_SID на хосте my_server01:
+./audit_tpi.sh my_server01 ORACLE_SID 3
+
+для удаленного варианта запуска необходимо настроить скрипт rtpi по следующей инструкции:
+
+Доступ: В случае удаленного сервера с БД, необходим доступ по ssh (настраивается правило доступа в скрипте rtpi) или tns (настраивается в конфиге .tpi_login, учетка\пароль шифруется)
+        Синтаксис для rtpi: rtpi HOST SID [in=INST_ID] [con=CON_ID] [опции] [параметры]
+
+В скрипте rtpi, прописываются простые правила запуска скрипта tpi на удаленной машине, либо подключение через TNS:
+
+пример из rtpi:
+
+  SRV-ORA*:dbpro*)                       cat $wtpi | $SSHCMD mp ". ~/.ora_env; /bin/bash -s $sid '" $login_str "' $args" ;; - тут для хостов SRV-ORA* и БД dbpro* по ssh идем на сервер mp, затем с него подключаемся по TNS $login_str, которая получена из .tpi_login
+  aisprod:aisutf)                        $wtpi $sid $login_str $args ;;                                                     - тут для сервера aisprod и БД aisutf просто подключаемся по TNS $login_str, которая получена из .tpi_login
+  ais*:*|unit*:*|alpha:*|beta:*|crm:*)   cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.ora_env; /bin/bash -s $sid $args" ;;         - тут для серверов ais* unit* alpha* beta* crm* и любых БД на них просто по ssh запускаем скрипт tpi с параметрами
+  *:*)                                   cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.bash_profile ; /bin/bash -s $sid $args" ;;   - тут для всех остальных серверов и любых БД просто по ssh запускаем скрипт tpi с параметрами
+
+
+Эта документация представляет наш инструмент как законченный продукт, с которым можно сразу начать работать. 
+
+Для коммерческого использования, если нужна поддержка, пишите на email: mutate@mail.ru
+Talgat Mukhametshin

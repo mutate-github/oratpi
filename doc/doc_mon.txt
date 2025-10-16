@@ -1,0 +1,219 @@
+
+Документация: Подсистема мониторинга и резервирования БД Oracle, использует TPI (Total Performance Insight) for Oracle
+
+Мониторинг: Выделен в отдельные скрипты, мониторящие сервера, базы, в конфиге "mon.ini.any_client_name" прописываются правила резервирования, пороги\критерии мониторинга, рассылка алертов админам на почту и в telegram канал.
+            Удобно использовать для небольших компаний, где нет централизованного мониторинга БД oracle. Успешно мониторит ~ 150-200 инстансов БД. 
+
+
+Краткое описание:
+
+1. Скрипты мониторига
+mon_adrcial.sh   - мониторинг adrci событий
+mon_alert.sh     - мониторинг алерт лога
+mon_bck.sh       - мониторинг бекапов
+mon_db.sh        - мониторинг БД
+mon_db_files.sh  - мониторинг количества файлов БД, приближающихся к лимиту db_files
+mon_disksp.sh    - мониторинг дискового пространства
+mon_fra.sh       - мониторинг FRA
+mon_fs.sh        - мониторинг файловых систем
+mon_load.sh      - мониторинг нагрузки ОС
+mon_lock.sh      - мониторинг блокировок БД
+mon_pga.sh       - мониторинг PGA
+mon_ping.sh      - мониторинг доступности ping
+mon_reslim.sh    - мониторинг лимита ресурсов
+mon_resumab.sh   - мониторинг сессий в состоянии resumable
+mon_ssh.sh       - мониторинг доступности сервера по ssh
+mon_stb.sh       - мониторинг standby сервера
+mon_stb_se.sh    - мониторинг standby сервера в oracle standard edition
+mon_swap.sh      - мониторинг swap
+mon_sysm_se.sh   - сборка sysmetrics в oracle standard edition
+mon_tbs.sh       - мониторинг табличных пространств
+
+mon_all.sh       - общий скрипт, содержит в себе вызов всех или части имеющихся, запускается так:
+
+./mon_all.sh my_client_name
+
+где "my_client_name" - это расширение конфига "mon.ini.any_client_name" из пункта 4.
+
+
+Чтобы работала отправка почты perl-скриптом "mmail" необходим модуль "Mail::Sender" который идет в комплекте, чтобы работало из терминала надо прописать путь до каталога модуля: 
+export PERL5LIB=/home/oracle/start/tpi:$PERL5LIB
+
+также есть скрипты для отправки через gmail yandex соответственно, авторизация прописывается в самих скриптах:
+tgmail
+tyandex
+
+Путь до скриптов надо прописать в PATH.
+
+2. Скрипты резервирования БД
+
+bck_db.sh        - резервирование БД от версии 10g и выше
+bck_logs.sh      - резервирование архивных логов от версии 10g и выше
+
+bck_db_se.sh     - резервирование БД от версии 10g и выше в oracle standard edition
+bck_logs_se.sh   - резервирование архивных логов от версии 10g и выше в oracle standard edition
+
+bck_db9i.sh      - резервирование БД версии 9i
+bck_logs9i.sh    - резервирование архивных логов версии 9i
+
+
+3. Конфиг установки окружения (профайла) .bash_profile .profile .ora_env  и т.п.
+На серверах oracle, каждый админ настраивает переменные окружения как ему удобно. Поэтому мы для баз данных конфигурируем общий файл-конфиг профилей set_env, который использует один параметр "$sid"
+
+его содержимое, следует по аналогии сконфигурировать свои профили для ваших серверов:
+
+$ cat set_env
+shopt -s nocasematch
+case "$sid" in
+cft*|kik*|bd*|prov*)        [ -r ~/db12kik.env ] && source ~/db12kik.env ;;
+jet|ja)                     [ -r /etc/profile.ora ] && source /etc/profile.ora ;;
+aisutf*|unit*|crm)          [ -r ~/.ora_env ] && source ~/.ora_env ;;
+egais*|GOLD506*)            [ -r ~/.bashrc ] && source ~/.bashrc ;;
+unc*|UKVDEV)                [ -r ~/${sid}_setenv.sh ] && source ~/${sid}_setenv.sh ;;
+orcl)                       [ -r ~/orcl_setenv.sh ] && source ~/orcl_setenv.sh ; login_str="user/passwd@'(DESCRIPTION=(ADDRESS=(COMMUNITY=TCP.WORLD)(PROTOCOL=TCP)(HOST=172.16.114.26)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orcl)))'" ;;
+dbprod|dbprog)              : ;;
+hathi|PHXPRODLIKE)          [ -r ~/hathi.env ] && source ~/hathi.env ;;
+*) case $(uname | awk -F_ '{print $1}') in
+      Linux)  [ -r ~/.bash_profile ] && source ~/.bash_profile
+              rc=$(find . -maxdepth 1 -name "${sid}_setenv.sh" -print -quit)
+              if [ -n "$rc" ]; then . ~/${sid}_setenv.sh ; fi
+              ;;
+      AIX)    [ -r ~/.profile ] && source ~/.profile
+              [ -r ~/.bashrc ] && source ~/.bashrc
+              ;;
+      SunOS)  [ -r ~/.profile ] && source ~/.profile
+              sidlow=$(tr '[:upper:]' '[:lower:]' <<< $sid)
+              [ -f /adm/env.${sidlow} ] && source /adm/env.${sidlow}
+              ;;
+      *)      ;;
+   esac
+;;
+esac
+
+
+
+4. Конфиг скриптов мониторинга
+mon.ini.any_client_name
+
+$ cat  mon.ini
+[servers]
+host=oraserver1
+host=beta
+
+# исключения работы скриптов для хоста или БД:
+[exclude]
+host:db:script=beta:%:mon_swap.sh:mon_tbs.sh
+
+[oraserver1]
+db=orcl1
+db=orcl2
+
+[mail]
+# script for send email
+#script=mmail
+#script=tgmail
+script=tyandex
+prefix=ANY_CLIENT_NAME
+# % - mask send mail for all host or db or scripts. may be many lines of host:db:set
+# host:db:set=%:%:%
+# host:db:set=aisprod:aisutf:mon_db.sh:mon_disksp.sh:mon_ping.sh:mon_ssh.sh:mon_processes_sessions.sh:mon_tbs.sh:mon_alert.sh
+host:db:set=%:%:%
+# repeat TRIGGER mail if trg_file is older than "repeat_minutes"
+repeat_minutes=600
+# repeat TRIGGER mail at "repeat_at" hour
+repeat_at=08
+
+[admins]
+email=support@my_company.ru
+
+[telegram]
+# telegram will send message with curl using this parameters:
+url=https://api.telegram.org/bot23234234:AAGQY9_yM7tNy_P9fH601d2ZOAuBQXI/sendMessage
+# cmd=/home/oracle/telegram-bot-bash/bin/send_message.sh
+chat_id=323764811
+# % - mask send telegram msg for all host or db or scripts. may be many lines of host:db:set
+# host:db:set=mp:%:mon_disksp.sh:mon_db.sh:mon_tbs.sh
+host:db:set=%:%:mon_disksp.sh:mon_db.sh:mon_tbs.sh
+# sample
+# host:db:set=oraserver1:orcl:mon_db.sh:mon_alert.sh:mon_disksp.sh:mon_fra.sh:mon_ping.sh:mon_ssh.sh:mon_processes_sessions.sh:mon_stb.sh:mon_tbs.sh
+
+[resource_limit]
+# in percent %
+processes=80
+sessions=80
+enqueue_locks=80
+max_rollback_segments=80
+
+[others]
+# in counts
+resumable=0
+SSHCMD=ssh -o ConnectTimeout=5 -o ServerAliveInterval=30 -o BatchMode=yes
+
+[locks]
+# in minutes
+threshold=20
+
+[swap]
+limitPER=90
+
+[load]
+limitPER=80
+
+[diskspace]
+# free space limit in %
+limitPER=90
+# free space limin in Gb
+limitGB=10
+
+[tbs]
+# free space limit in %
+limitPER=90
+# free space limin in Gb
+limitGB=10
+
+[standby]
+# limit in minutes unapplied archivelogs
+lag_minutes=30
+# limit count unapplied archivelogs
+seq_gap=100
+# for scripts mon_stb_se.sh bck_db_se.sh bck_logs_se.sh for standby for database:  primary_host=db:standby_host
+# may be multiple standby and also Standard Edition SE
+# aisprod=aisutf:aisstb
+
+
+[fra]
+# FRA limit in %
+limitPER=80
+
+[alert]
+part_of_day=24
+lines=20000
+exclude=ORA-01005
+exclude=ORA-01422
+exclude=ORA-06512
+exclude=ORA-12012
+
+[backup]
+hours_since_lvl0=170
+hours_since_lvl1=170
+hours_since_arch=4
+hours_since_ctrl=4
+level0=Sun
+level1=Wed,Fri
+level2=Mon,Tue,Sat
+target=/
+tns_catalog=rman/rman@rman_catalog
+# backup param where host:db:set=HOST:DB:NAS:RETENTION_POLICY:RETENTION_POLICY_NUM:CATALOG\NOCATALOG:LEVEL - 0 1 2 OR ANY OTHER for statement: "not backed up since time 'sysdate-1'"
+host:db:set=oraserver1:orcl:nas:RECOVERY_WINDOW_OF:7:nocatalog
+
+
+5. Скрипт чистки логов, трейсов и т.п. Формат запуска:
+./startall_purge_traces.sh  "имя_клиента"
+
+где "имя_клиента" - расширение конфига mon.ini."имя_клиента" 
+
+
+Эта документация представляет наш инструмент как законченный продукт, с которым можно сразу начать работать. 
+
+Для коммерческого использования, если нужна поддержка, пишите на email: mutate@mail.ru
+Talgat Mukhametshin
