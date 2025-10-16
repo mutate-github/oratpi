@@ -14,19 +14,19 @@ TPI — это мощная консольная система монитори
 
 Система состоит из трех частей:
 1. Скрипты диагностики БД Oracle. Скрипты: rtpi, tpi. Полная документация doc/doc_tpi.txt
-2. Скприты мониторинга БД Oracle. Скрипты: mon_all.sh, mon_*.sh. Полная документация doc/doc_mon.txt
-3. Скприты первичного аудита БД Oracle. Скрипт: audit_tpi.sh. Полная документация doc/doc_aud.txt
+2. Скрипты мониторинга БД Oracle. Скрипты: mon_all.sh, mon_*.sh. Полная документация doc/doc_mon.txt
+3. Скрипты первичного аудита БД Oracle. Скрипт: audit_tpi.sh. Полная документация doc/doc_aud.txt
 
 Эта документация представляет инструмент как законченный продукт, с которым можно сразу начать работать. 
 Для коммерческого использования, если нужна поддержка, пишите на email: mutate@mail.ru Talgat Mukhametshin
 
-Немного примеров, для представления:
+Немного примеров, для общего представления:
 ```
 сервер:    prod-db
 БД Oracle: mprod
 ```
 
-Список сессий, с ожиданиями:
+Список всех сессий БД, с ожиданиями:
 ```
 $ rtpi prod-db mprod a
 DB=mprod 16/10/25-14:25:52 ver=15.10.25  [in=INST_ID] [con=[CON_ID]] "" - ACTIVE | a - Allsess | in - INACTIVE | k - KILLED | [access OBJECT] | P.SPID\S.SID\S.PROCESS [bind] [PEEKED_BINDS OUTLINE all ALLSTATS ADVANCED last adaptive PREDICATE partition] | p [param_name] ] - sess param info, p - from V$SES_OPTIMIZER_ENV by [param_name]
@@ -49,7 +49,7 @@ SPID        SID SERIAL# INS CON USERNAME             OSUSER            MACHINE  
 640413      178   38616   1   0 SYS                  oracle            prod-db.nc152.cmp sqlplus@prod-db.nc152.cmp.nkz.icdc.io (TNS V1-V3 / tpi       3 SELECT 20gymysxkb0bv SQL*Net message to client         0 16/10 14:25       0 A
 ```
 
-Детали сессии 876:
+Детали сессии 876, запрос, план выполнения:
 ```
 $ rtpi prod-db mprod 876
 DB=mprod 16/10/25-12:10:04 ver=15.10.25  [in=INST_ID] [con=[CON_ID]] "" - ACTIVE | a - Allsess | in - INACTIVE | k - KILLED | [access OBJECT] | P.SPID\S.SID\S.PROCESS [bind] [PEEKED_BINDS OUTLINE all ALLSTATS ADVANCED last adaptive PREDICATE partition] | p [param_name] ] - sess param info, p - from V$SES_OPTIMIZER_ENV by [param_name] process_info
@@ -132,7 +132,7 @@ DELETE OVERALL_TEMP WHERE OWNER = 'RESERV_RECALC_TEKSALDO_TEKMC'
 ===============================================================================
 ```
 
-График нагрузки БД с 96 CPU:
+График нагрузки БД по CPU \ IO \ WAIT с 96 CPU:
 ```
 $ rtpi prod-db mprod ash cchart
 DB=mprod 16/10/25-12:09:20 ver=15.10.25  ash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV$ACTIVE_SESSION_HISTORY , for: cchart
