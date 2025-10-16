@@ -205,7 +205,6 @@ DB=mprod 16/10/25-12:09:20 ver=15.10.25  ash [in=INST_ID] [con=[CON_ID]] [dd/mm/
 
 График нагрузки IO datafiles
 ```
-[16.10.2025 12:09:27] t.mukhametshin@dbs-proxy-dca: ~
 $ rtpi prod-db mprod dhash 01/10/25-09:03-24 iostat | diagram.sh  2 3 4 5 6 7 8 9 10 11 12 13
 Legend:
 TRE_MBS  - TotalReads           SRE_MBS  - SingleReadsMBS      SMRE_LAT - Small_read_servicetime/Small_read_reqs
