@@ -5,7 +5,7 @@
 
 TPI — это мощная консольная система мониторинга и диагностики баз данных Oracle, объединяющая в себе функции Enterprise Manager, AWR/ASH отчетов, 
 SQL-тюнинга и повседневного администрирования. Легковесный инструмент, написанный на bash/perl/SQL, не требующий запущенного агента и потребляющий минимум ресурсов.
-Универсально работающий под ОС: Linux, IBM AIX, SunOS, Cygwin - Windows. Начиная с версии oracle 9i и далее. 
+Универсально работающий под ОС: Linux, IBM AIX, SunOS, Cygwin\OpenSSH - Windows. Начиная с версии oracle 9i и далее. 
 
 Ключевые преимущества:
 
@@ -4967,6 +4967,62 @@ d84v28q39nfbw 620930960    SQL_a4fd6d3d18103186 SQL_PLAN_a9zbd7nc10cc640f51a0f 3
 4s64pk52smqyx 109746087    SQL_78d5421f0ef3533c SQL_PLAN_7jpa23w7g6ntw9814871d 04/09/25 08:01:01   04/09/25 08:01:01                       YES NO  NO     2429         0        0        0          0        0       0
 4s64pk52smqyx 1813770987   SQL_78d5421f0ef3533c SQL_PLAN_7jpa23w7g6ntw5d0a52f7 04/09/25 15:03:58   04/09/25 15:03:58                       YES NO  NO     2187         0        0        0          0        0       0
 4s64pk52smqyx 328388721    SQL_78d5421f0ef3533c SQL_PLAN_7jpa23w7g6ntwc631cf21 05/09/25 16:13:14   05/09/25 16:13:14                       YES NO  NO     6674         0        0        0          0        0       0
+
+
+
+В случае досутпа по TNS, необходим служебный пользователь, например "oratpiuser" для досутпа к БД со следующими привилегиями:
+(именно эта учтека прописывается в строку подключения к БД в конфиге .tpi_login)
+
+create user oratpiuser identified by oratpiuser#123456;
+grant connect,resource, dba to oratpiuser;
+grant select_catalog_role, select any dictionary to oratpiuser;
+grant sysdba to oratpiuser;
+grant sysbackup to oratpiuser;
+grant execute on dbms_crypto to oratpiuser;
+grant execute on dbms_sqldiag_internal to oratpiuser;
+grant execute on dbms_ijob to oratpiuser;
+grant execute on dbms_sql2 to oratpiuser;
+grant delete on SYS.PENDING_TRANS$ to oratpiuser;
+grant delete on SYS.PENDING_SESSIONS$ to oratpiuser;
+grant delete on SYS.PENDING_SUB_SESSIONS$ to oratpiuser;
+grant insert on SYS.PENDING_TRANS$ to oratpiuser;
+grant insert on SYS.PENDING_SESSIONS$ to oratpiuser;
+grant insert on SYS.PENDING_SUB_SESSIONS$ to oratpiuser;
+grant execute on DBMS_TRANSACTION to oratpiuser;
+create or replace view sys.tal_links as select * from sys.link$;
+create or replace synonym oratpiuser.link$ for sys.tal_links;
+create or replace view sys.tal_V_$DB_PIPES as select * from sys.V_$DB_PIPES;
+create or replace synonym oratpiuser.V_$DB_PIPES for sys.tal_V_$DB_PIPES;
+create or replace view sys.tal_x$kccagf as select * from sys.x$kccagf;
+create or replace synonym oratpiuser.x$kccagf for sys.tal_x$kccagf;
+create or replace view sys.tal_user$ as select * from sys.user$;
+create or replace synonym oratpiuser.user$ for sys.tal_user$;
+create or replace view sys.tal_audit$ as select * from sys.audit$;
+create or replace synonym oratpiuser.audit$ for sys.tal_audit$;
+create or replace view sys.tal_link$ as select * from sys.link$;
+create or replace synonym oratpiuser.link$ for sys.tal_link$;
+create or replace view sys.tal_x$kglpn as select * from sys.x$kglpn;
+create or replace synonym oratpiuser.x$kglpn for sys.tal_x$kglpn;
+create or replace view sys.tal_x$kglob as select * from sys.x$kglob;
+create or replace synonym oratpiuser.x$kglob for sys.tal_x$kglob;
+create or replace view sys.tal_x$bh as select * from sys.x$bh;
+create or replace synonym oratpiuser.x$bh for sys.tal_x$bh;
+create or replace view sys.tal_x$ksuprlat as select * from sys.x$ksuprlat;
+create or replace synonym oratpiuser.x$ksuprlat for sys.tal_x$ksuprlat;
+create or replace view sys.tal_x$ksuse as select * from sys.x$ksuse;
+create or replace synonym oratpiuser.x$ksuse for sys.tal_x$ksuse;
+create or replace view sys.tal_x$ksllw as select * from sys.x$ksllw;
+create or replace synonym oratpiuser.x$ksllw for sys.tal_x$ksllw;
+create or replace view sys.tal_x$ksppsv as select * from sys.x$ksppsv;
+create or replace synonym oratpiuser.x$ksppsv for sys.tal_x$ksppsv;
+create or replace view sys.tal_x$ksppi as select * from sys.x$ksppi;
+create or replace synonym oratpiuser.x$ksppi for sys.tal_x$ksppi;
+create or replace view sys.tal_x$ksppcv as select * from sys.x$ksppcv;
+create or replace synonym oratpiuser.x$ksppcv for sys.tal_x$ksppcv;
+create or replace view sys.tal_x$ktuxe as select * from sys.x$ktuxe;
+create or replace synonym oratpiuser.x$ktuxe for sys.tal_x$ktuxe;
+create or replace view sys.tal_WRM$_SNAPSHOT_DETAILS as select * from sys.WRM$_SNAPSHOT_DETAILS;
+create or replace synonym oratpiuser.WRM$_SNAPSHOT_DETAILS for sys.tal_WRM$_SNAPSHOT_DETAILS;
 
 
 
