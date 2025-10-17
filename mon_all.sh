@@ -59,6 +59,8 @@ echo "Monitor: =================================================================
 $BASEDIR/mon_resumab.sh $CLIENT
 echo "Monitor: ================================================================================ mon_pga.sh "$(date)
 $BASEDIR/mon_pga.sh $CLIENT
+echo "Monitor: ================================================================================ mon_forlog.sh "$(date)
+$BASEDIR/mon_forlog.sh $CLIENT
 echo "Monitor: ================================================================================ mon_lock.sh "$(date)
 $BASEDIR/mon_lock.sh $CLIENT
 echo "Monitor: ================================================================================ kill_sniped.sh "$(date)
