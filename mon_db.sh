@@ -35,7 +35,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     diff $LOGF_DB_OLD $LOGF_DB > $LOGF_DB_DIFF
 
     if [ -s $LOGF_DB_DIFF ]; then 
-        cat $LOGF_DB_DIFF | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "DB status has been changed:"
+        cat $LOGF_DB_DIFF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "DB status has been changed:"
     fi
     cp $LOGF_DB $LOGF_DB_OLD
     rm $LOGF_DB_DIFF $LOGF_DB

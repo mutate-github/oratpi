@@ -32,7 +32,7 @@ repeat_trigger()
        REPEAT_MINUTES=$($BASEDIR/iniget.sh $CONFIG mail repeat_minutes)
        FF=$(find "$TRG_FILE_ARCH" -mmin +$REPEAT_MINUTES 2>/dev/null | wc -l)
        if [ "$FF" -eq 1 ]; then
-          echo "$LAST_ARCH -ge $hours_since_" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "- TRIGGER REPEAT: $(date +%H:%M:%S-%d/%m/%y) $MSG REPEAT_MINUTES=${REPEAT_MINUTES} REPEAT_AT=${REPEAT_AT} )"
+          echo "$LAST_ARCH -ge $hours_since_" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "- TRIGGER REPEAT: $(date +%H:%M:%S-%d/%m/%y) $MSG REPEAT_MINUTES=${REPEAT_MINUTES} REPEAT_AT=${REPEAT_AT} )"
           echo "TRIGGER REPEAT: $(date +%H:%M:%S-%d/%m/%y) $MSG REPEAT_MINUTES=${REPEAT_MINUTES} REPEAT_AT=${REPEAT_AT}   host: "${HOST} " database: "${DB}
 	  touch $file_for_touch_
        fi
@@ -71,33 +71,33 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 
 	MSG="there was no level0 backup for $hours_since_lvl0 hours"
         if [ ! -f "$TRG_FILE_LVL0" ]; then
-           [[ "$LAST_LEV0" -ge "$hours_since_lvl0" ]] && (touch "$TRG_FILE_LVL0"; echo "$LAST_LEV0 -ge $hours_since_lvl0" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "TRIGGER: $MSG")
+           [[ "$LAST_LEV0" -ge "$hours_since_lvl0" ]] && (touch "$TRG_FILE_LVL0"; echo "$LAST_LEV0 -ge $hours_since_lvl0" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "TRIGGER: $MSG")
         else
-           [[ "$LAST_LEV0" -lt "$hours_since_lvl0" ]] && (rm "$TRG_FILE_LVL0"; echo "$LAST_LEV0 -lt $hours_since_lvl0" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "RECOVER: $MSG")
+           [[ "$LAST_LEV0" -lt "$hours_since_lvl0" ]] && (rm "$TRG_FILE_LVL0"; echo "$LAST_LEV0 -lt $hours_since_lvl0" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "RECOVER: $MSG")
 	   repeat_trigger $hours_since_lvl0 $TRG_FILE_LVL0
         fi
 
 	MSG="there was no level1 backup for $hours_since_lvl1 hours"
         if [ ! -f "$TRG_FILE_LVL1" ]; then
-           [[ "$LAST_LEV1" -ge "$hours_since_lvl1" ]] && (touch "$TRG_FILE_LVL1"; echo "$LAST_LEV1 -ge $hours_since_lvl1" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "TRIGGER: $MSG")
+           [[ "$LAST_LEV1" -ge "$hours_since_lvl1" ]] && (touch "$TRG_FILE_LVL1"; echo "$LAST_LEV1 -ge $hours_since_lvl1" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "TRIGGER: $MSG")
         else
-           [[ "$LAST_LEV1" -lt "$hours_since_lvl1" ]] && (rm "$TRG_FILE_LVL1"; echo "$LAST_LEV1 -lt $hours_since_lvl1" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "RECOVER: $MSG")
+           [[ "$LAST_LEV1" -lt "$hours_since_lvl1" ]] && (rm "$TRG_FILE_LVL1"; echo "$LAST_LEV1 -lt $hours_since_lvl1" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "RECOVER: $MSG")
 	   repeat_trigger $hours_since_lvl1 $TRG_FILE_LVL1
         fi
 
 	MSG="there was no archivelogs backup for $hours_since_arch hours"
         if [ ! -f "$TRG_FILE_ARCH" ]; then
-           [[ "$LAST_ARCH" -ge "$hours_since_arch" ]] && (touch "$TRG_FILE_ARCH"; echo "$LAST_ARCH -ge $hours_since_arch" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "TRIGGER: $MSG")
+           [[ "$LAST_ARCH" -ge "$hours_since_arch" ]] && (touch "$TRG_FILE_ARCH"; echo "$LAST_ARCH -ge $hours_since_arch" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "TRIGGER: $MSG")
         else
-           [[ "$LAST_ARCH" -lt "$hours_since_arch" ]] && (rm "$TRG_FILE_ARCH"; echo "$LAST_ARCH -lt $hours_since_arch" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "RECOVER: $MSG")
+           [[ "$LAST_ARCH" -lt "$hours_since_arch" ]] && (rm "$TRG_FILE_ARCH"; echo "$LAST_ARCH -lt $hours_since_arch" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "RECOVER: $MSG")
 	   repeat_trigger $hours_since_arch $TRG_FILE_ARCH
         fi
 
 	MSG="there was no controlfile backup for $hours_since_ctrl hours"
         if [ ! -f "$TRG_FILE_CTRL" ]; then
-           [[ "$LAST_CTRL" -ge "$hours_since_ctrl" ]] && (touch "$TRG_FILE_CTRL"; echo "$LAST_CTRL -ge $hours_since_ctrl" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "TRIGGER: $MSG")
+           [[ "$LAST_CTRL" -ge "$hours_since_ctrl" ]] && (touch "$TRG_FILE_CTRL"; echo "$LAST_CTRL -ge $hours_since_ctrl" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "TRIGGER: $MSG")
         else
-           [[ "$LAST_CTRL" -lt "$hours_since_ctrl" ]] && (rm "$TRG_FILE_CTRL"; echo "$LAST_CTRL -lt $hours_since_ctrl" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "RECOVER: $MSG")
+           [[ "$LAST_CTRL" -lt "$hours_since_ctrl" ]] && (rm "$TRG_FILE_CTRL"; echo "$LAST_CTRL -lt $hours_since_ctrl" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "RECOVER: $MSG")
 	   repeat_trigger $hours_since_ctrl $TRG_FILE_CTRL
         fi
      fi

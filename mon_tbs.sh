@@ -50,7 +50,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 ##           echo "" >> $LOGF_TRG
 #       done  >>  $LOGF_TRG
 
-       cat $LOGF_HEAD $LOGF_TRG | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "TBS usage warning: free space too low current: ${CUR_VAL}%, threshold: ${limPER}%, limGB: ${limGB}"
+       cat $LOGF_HEAD $LOGF_TRG | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "TBS usage warning: free space too low current: ${CUR_VAL}%, threshold: ${limPER}%, limGB: ${limGB}"
        rm $LOGF $LOGF_TRG $LOGF_HEAD
     fi
   done # DB

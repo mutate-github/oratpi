@@ -121,7 +121,7 @@ if [ "$ERRCT" -gt 1 ]; then
  echo "$ERRMESS" | awk 'BEGIN {FS="<BR>"}{for (i=1;NF>=i;i++) {print $i}}'
  echo " " >> $LOGF_HEAD
  echo "$ERRMESS" | awk 'BEGIN {FS="<BR>"}{for (i=1;NF>=i;i++) {print $i}}' >> $LOGF_HEAD
- cat $LOGF_HEAD | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "ALERT_LOG warning:"
+ cat $LOGF_HEAD | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "ALERT_LOG warning:"
 fi
 
 #rm $LOGF $LOGF_HEAD $EXCLFILE $AWKFILE

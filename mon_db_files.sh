@@ -41,7 +41,7 @@ END
     echo "VALUE: "$VALUE
 
     if [[ "$VALUE" -gt "$PERCENT" ]]; then
-      echo "" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "db_files usage warning: (current: ${VALUE} %, threshold: ${PERCENT} %)"
+      echo "" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "db_files usage warning: (current: ${VALUE} %, threshold: ${PERCENT} %)"
     fi
   done # DB
 done # HOST

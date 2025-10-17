@@ -55,7 +55,7 @@ END
     echo "VALUE: "$VALUE
 
     if [[ "$VALUE" -gt "$PERCENT" ]]; then
-      echo "" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "PGA usage warning: (current: ${VALUE} %, threshold: ${PERCENT} %)"
+      echo "" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "PGA usage warning: (current: ${VALUE} %, threshold: ${PERCENT} %)"
     fi
   done # DB
 done # HOST

@@ -49,7 +49,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ -s $LOGF ]; then
     if [ "$PCT" -gt "$limPER" -a "$FS_" -lt "$limGB" ]; then
       echo -e "Fired: "$0"\n" > $LOGF_HEAD
-      cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $HOST NULL "DISKSPACE usage warning: (current: ${PCT} %, threshold: ${limPER} % and below ${limGB} Gb)"
+      cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST NULL "DISKSPACE usage warning: (current: ${PCT} %, threshold: ${limPER} % and below ${limGB} Gb)"
       rm $LOGF_HEAD
     fi
     rm $LOGF

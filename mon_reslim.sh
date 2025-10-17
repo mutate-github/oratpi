@@ -33,7 +33,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     PERLIM=$($BASEDIR/iniget.sh $CONFIG resource_limit $RESOURCE_NAME)
 
     if [[ -n "$PERLIM" && "$PERCENT" -gt "$PERLIM" ]]; then
-      echo "" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "$RESOURCE_NAME limit warning: (current: $CURRENT_UTILIZATION, limit: $LIMIT_VALUE, threshold: $PERLIM % , now: $PERCENT %)"
+      echo "" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "$RESOURCE_NAME limit warning: (current: $CURRENT_UTILIZATION, limit: $LIMIT_VALUE, threshold: $PERLIM % , now: $PERCENT %)"
     fi
     done
   done # DB

@@ -40,7 +40,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ -s $LOGF ]; then
     if [[ "$PCT" -ge "$limPER" ]]; then
       echo -e "Fired: "$0"\n" > $LOGF_HEAD
-      cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $HOST NULL "Overall OS Load warning: (current: ${PCT} %, threshold: ${limPER} %)"
+      cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST NULL "Overall OS Load warning: (current: ${PCT} %, threshold: ${limPER} %)"
       rm $LOGF_HEAD
     fi
     rm $LOGF

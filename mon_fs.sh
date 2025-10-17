@@ -38,7 +38,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     diff $LOGF_FS_OLD $LOGF > $LOGF_FS_DIFF
 
     if [ -s $LOGF_FS_DIFF ]; then
-       cat $LOGF_FS_DIFF | $BASEDIR/send_msg.sh $CONFIG $HOST NULL "FS mountpoint has been changed:"
+       cat $LOGF_FS_DIFF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST NULL "FS mountpoint has been changed:"
     fi
     cp $LOGF $LOGF_FS_OLD
     rm $LOGF_FS_DIFF $LOGF

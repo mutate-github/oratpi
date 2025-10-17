@@ -79,7 +79,7 @@ cat $LOGFILE | tail -n +3 | sed '/^ *$/d' > $LOGFILE.new.txt
 mv $LOGFILE.new.txt $LOGFILE
 
 if [ -s $LOGFILE ];then
-    cat $LOGHEAD  $LOGFILE | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "ALERT_LOG warning mon_adrci_alert.sh:"
+    cat $LOGHEAD  $LOGFILE | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "ALERT_LOG warning mon_adrci_alert.sh:"
 fi
 
 rm $LOGHEAD $LOGFILE $ONE_EXEC_F

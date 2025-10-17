@@ -1,9 +1,14 @@
 #!/bin/bash
+# Usage: ./send_msg.sh $CONFIG $0 $HOST $DB "message"
 set -f
 # for case +(...|...)
 shopt -s extglob
 
 CONFIG="$1"
+shift
+
+PARENT_SCRIPT=$1
+NAME_PARENT=${PARENT_SCRIPT##*/} 
 shift
 
 HOST=$1
@@ -26,8 +31,8 @@ MPREFIX=$($BASEDIR/iniget.sh $CONFIG mail prefix)
 ADMINS=$($BASEDIR/iniget.sh $CONFIG admins email)
 MMHOSTS=$($BASEDIR/iniget.sh $CONFIG mail host:db:set)
 TGHOSTS=$($BASEDIR/iniget.sh $CONFIG telegram host:db:set)
-#NAME_PARENT=$(awk -F/ '{print $NF}' /proc/"$PPID"/cmdline)
-NAME_PARENT=$(awk -F/ '{print $NF}' /proc/"$PPID"/comm)
+# NAME_PARENT=$(awk -F/ '{print $NF}' /proc/"$PPID"/cmdline)  # old old linux
+# NAME_PARENT=$(awk -F/ '{print $NF}' /proc/"$PPID"/comm)     # old linux
 echo "send_msg.sh NAME_PARENT: "$NAME_PARENT
 echo "send_msg.sh comm: "$(cat /proc/$PPID/comm)
 

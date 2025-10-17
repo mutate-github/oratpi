@@ -29,7 +29,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     RCNTLIM=$($BASEDIR/iniget.sh $CONFIG others resumable)
 
     if [[ -n "$RCNTLIM" && "$RCNT" -gt "$RCNTLIM" ]]; then
-      echo "" | $BASEDIR/send_msg.sh $CONFIG $HOST $DB "RESUMABLE_COUNT sessions limit warning: (current: $RCNT, limit: $RCNTLIM)"
+      echo "" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "RESUMABLE_COUNT sessions limit warning: (current: $RCNT, limit: $RCNTLIM)"
     fi
   done # DB
 done # HOST
