@@ -3734,7 +3734,7 @@ $ tpi mprod sql sqlstat ela
    1    0 bn7sh27xnf8ds                 0 15/10/25 17:55:09        2,687             0        0        0        2,687            0           4,255            1         .0291         .0412          0        36712
 
 
-55. ash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV$ACTIVE_SESSION_HISTORY
+55. ash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV$ACTIVE_SESSION_HISTORY
 
     опция для работы с ASH, можно указать период [dd/mm/yy-HH:MI-HH:MI(hours) - def1h], - поумолчанию 1 последний час
 
@@ -3867,7 +3867,7 @@ $ tpi mprod  ash sess  5t471b7yabqqz
 наппример, ash where PLSQL_ENTRY_OBJECT_ID=64249 - какие запросы были выполнены из пакета PLSQL_ENTRY_OBJECT_ID=64249
 
 $ tpi mprod  ash where PLSQL_ENTRY_OBJECT_ID=64249
-DB=mprod 15/10/25-19:12:23 ver=15.10.25  ash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV$ACTIVE_SESSION_HISTORY , for: where PLSQL_ENTRY_OBJECT_ID=64249
+DB=mprod 15/10/25-19:12:23 ver=15.10.25  ash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV$ACTIVE_SESSION_HISTORY , for: where PLSQL_ENTRY_OBJECT_ID=64249
 
 "Stat top 30 session_state from GV$ACTIVE_SESSION_HISTORY for condition:  PLSQL_ENTRY_OBJECT_ID=64249 and  and sample_time between to_date('15/10/25 19:12:24','dd/mm/yy hh24:mi:ss') - interval '1' hour and sysdate"
 
@@ -3889,7 +3889,7 @@ Objects from dba_objects where object_id = '64249':
 
 55.10 ash where "USERNAME='IBS'" - какие запросы выполнены пользователем "IBS"
  tpi mprod  ash where "USERNAME='IBS'"
-DB=mprod 15/10/25-19:18:27 ver=15.10.25  ash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV$ACTIVE_SESSION_HISTORY , for: where USERNAME='IBS'
+DB=mprod 15/10/25-19:18:27 ver=15.10.25  ash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV$ACTIVE_SESSION_HISTORY , for: where USERNAME='IBS'
 
 "Stat top 30 session_state from GV$ACTIVE_SESSION_HISTORY for condition:  USERNAME='IBS' and  and sample_time between to_date('15/10/25 19:18:27','dd/mm/yy hh24:mi:ss') - interval '1' hour and sysdate"
 
@@ -4306,7 +4306,7 @@ $ tpi mprod  ash sqlstat ela
    1    0 b01yka4xbtsc7        4269230725 15/10/25 17:10:12           36             0        4        2           36       20,816          90,872            3        8.1498       10.3424          2       194640
    1    0 aj12ru9czsq71         979109641 15/10/25 17:44:50        3,134             0        2        0        5,787            0          14,188           12         .0571         .0598          0        28344
 
-55.20 данные из ash в разрезе insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|event|wait_class] 
+55.20 данные из ash в разрезе insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] 
 
 $ tpi mprod  ash insection username
 
@@ -4406,6 +4406,46 @@ $ tpi mprod  ash insection sql_opname,sql_plan_operation,sql_plan_options
    1    0 INSERT          FILTER                                                               0.00      0.00                          0.02
    1    0 UPDATE                                                                               0.00      0.00                          0.02
    1    0 INSERT          SEQUENCE                                                             0.00      0.00                          0.02
+
+Вызов какого пакета наиболее активен:
+$ tpi mmprod prd ash insection PLSQL_ENTRY_OBJECT_ID
+
+"Activity top 50 in section: PLSQL_ENTRY_OBJECT_ID from GV$ACTIVE_SESSION_HISTORY where sample_time between to_date('22/10/25 11:09:37','dd/mm/yy hh24:mi:ss') - interval '1' hour and sysdate"
+
+  IN  CON PLSQL_ENTRY_OBJECT_ID TIME_WAITED       CPU      WAIT        IO %ACTIVITY
+---- ---- --------------------- ----------- --------- --------- --------- ---------
+   1    0                 72794      223.07    223.07                         43.33
+   1    0                            762.06    727.85     33.32      0.89     31.68
+   1    0                 72799        3.07      1.43      1.61      0.03     11.34
+   1    0                 73077        0.01      0.01      0.00      0.00      4.33
+   1    0                 72806       33.01      2.56     30.45      0.00      2.07
+   1    0                 72805        0.37      0.36      0.00      0.01      1.97
+   1    0                 15662        4.80      0.01      0.20      4.60      0.98
+   1    0                 73070       62.91     62.81      0.00      0.11      0.93
+   1    0                 72858        6.13      6.13                          0.78
+   1    0                 73071        1.25      1.25      0.00      0.00      0.78
+   1    0                 73327        0.04      0.04                          0.41
+   1    0                 73051        0.02      0.02                          0.39
+   1    0                 73063        0.96      0.96                          0.28
+   1    0                 73072        0.49      0.49                          0.18
+   1    0                  8065        0.00      0.00                          0.16
+   1    0                 72795        0.02      0.02                          0.13
+   1    0                 73174        0.00      0.00                          0.10
+   1    0                 15599        0.00      0.00                          0.08
+   1    0                 73084        0.00      0.00                          0.03
+   1    0                 73196        0.47      0.47                          0.03
+   1    0                 72801        0.36      0.36                          0.03
+
+
+находим по ID объекта имя объекта:
+
+$ tpi mprod o 72794
+
+Objects from dba_objects where object_id = '72794':
+ OBJECT_ID OWNER                          OBJECT_NAME                    OBJECT_TYPE          CREATED           LAST_DDL_TIME     STATUS
+---------- ------------------------------ ------------------------------ -------------------- ----------------- ----------------- ----------------------------
+     72794 MADMIN                         MC_CJS_CONTROL                 PACKAGE              18/08/23 13:30:34 20/10/23 12:03:16 VALID
+
 
 $ tpi mprod  ash insection event
 
