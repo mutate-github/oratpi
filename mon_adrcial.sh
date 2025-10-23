@@ -18,6 +18,8 @@ HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
 PART_OF_DAY=$($BASEDIR/iniget.sh $CONFIG alert part_of_day)
 EXCLUDE=$($BASEDIR/iniget.sh $CONFIG alert exclude)
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
+SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
+ME=$(basename $0)
 
 SET_ENV_F="$BASEDIR/set_env"
 SET_ENV=$(<$SET_ENV_F)
@@ -30,6 +32,21 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
   for DB in $(xargs -n1 echo <<< "$DBS"); do
     echo "DB="$DB
+#--- skip for host:db:script1:script2
+    skip_outer_loop_db=0
+    for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
+       HOST_=$(awk -F: '{print $1}' <<< $EXCL)
+       DB_=$(awk -F: '{print $2}' <<< $EXCL)
+       SCRIPTS_=$(cut -d':' -f3- <<< $EXCL)
+       if [[ "$HOST_" = "$HOST" || "$HOST_" = % ]] && [[ "$DB_" = "$DB" || "$DB_" = % ]]  && [[ "$SCRIPTS_" == *"$ME"* || "$SCRIPTS_" == *%* ]]; then
+         echo "Find EXCLUDE HOST:   $HOST in   EXCL: $EXCL"
+         echo "Find EXCLUDE DB:     $DB   in   EXCL: $EXCL"
+         echo "Find EXCLUDE SCRIPT: $ME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop_db=1; break
+       fi
+    done
+    if [ "$skip_outer_loop_db" -eq 1 ]; then echo "SKIP and continue outher loop db!"; continue; fi
+#--- end skip for db
+
     LOGFILE=$LOGDIR/mon_alert_adrci_${HOST}_${DB}_log.txt
     LOGHEAD=$LOGDIR/mon_alert_adrci_${HOST}_${DB}_head.txt
 
