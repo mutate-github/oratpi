@@ -34,7 +34,7 @@ TGHOSTS=$($BASEDIR/iniget.sh $CONFIG telegram host:db:set)
 # NAME_PARENT=$(awk -F/ '{print $NF}' /proc/"$PPID"/cmdline)  # old old linux
 # NAME_PARENT=$(awk -F/ '{print $NF}' /proc/"$PPID"/comm)     # old linux
 echo "send_msg.sh NAME_PARENT: "$NAME_PARENT
-echo "send_msg.sh comm: "$(cat /proc/$PPID/comm)
+# echo "send_msg.sh comm: "$(cat /proc/$PPID/comm)
 
 send_email()
 { echo "send_msg.sh WMMAIL: "$WMMAIL ; printf %s "$msg" | $WMMAIL -s "$MPREFIX ${HOST} ${DB} ${ALL}" $ADMINS ; }
@@ -64,13 +64,13 @@ esac
 
 # send msg to email
 # printf %s "$msg" | $WMMAIL -s "$MPREFIX ${HOST}/${DB} ${ALL}" $ADMINS
-for HDS in $(echo $MMHOSTS | xargs -n1 echo); do
+for HDS in $(xargs -n1 echo <<< $MMHOSTS); do
 #alpha:aisutf:%
 #beta:aisutf:mon_db.sh:mon_alert.sh:mon_disksp.sh
-  PHOST=$(echo $HDS | awk -F: '{print $1}')
-  PDB=$(echo $HDS | awk -F: '{print $2}')
-  SCRIPTS=$(echo $HDS | cut -d':' -f3-)
-  SCRIPTS='+('$(echo $SCRIPTS | sed 's/:/|/g')')'
+  PHOST=$(awk -F: '{print $1}' <<< $HDS)
+  PDB=$(awk -F: '{print $2}' <<< $HDS)
+  SCRIPTS=$(cut -d':' -f3- <<< $HDS)
+  SCRIPTS='+('$(sed 's/:/|/g' <<< $SCRIPTS)')'
   if [ "$PHOST" = "$HOST" -o "$PHOST" = "%" ]; then
     echo "send_msg.sh BINGO: is my host in regestry mail HOST: "$HOST
     echo "send_msg.sh PHOST: "$PHOST
@@ -89,13 +89,13 @@ done
 
 # send msg to telegram bot
 # printf %s "$msg" | $BASEDIR/ttlgrm_bot.sh $CONFIG $MPREFIX $HOST $DB $ALL
-for HDS in $(echo $TGHOSTS | xargs -n1 echo); do
+for HDS in $(xargs -n1 echo <<< $TGHOSTS); do
 #alpha:aisutf:%
 #beta:aisutf:mon_db.sh:mon_alert.sh:mon_disksp.sh
-  PHOST=$(echo $HDS | awk -F: '{print $1}')
-  PDB=$(echo $HDS | awk -F: '{print $2}')
-  SCRIPTS=$(echo $HDS | cut -d':' -f3-)
-  SCRIPTS='+('$(echo $SCRIPTS | sed 's/:/|/g')')'
+  PHOST=$(awk -F: '{print $1}' <<< $HDS)
+  PDB=$(awk -F: '{print $2}' <<< $HDS)
+  SCRIPTS=$(cut -d':' -f3- <<< $HDS)
+  SCRIPTS='+('$(sed 's/:/|/g' <<< $SCRIPTS)')'
   if [ "$PHOST" = "$HOST" -o "$PHOST" = "%" ]; then
     echo "BINGO: is my host in regestry telegram: "$HOST
     shopt -s extglob
