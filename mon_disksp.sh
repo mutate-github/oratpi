@@ -9,21 +9,40 @@ if [ -n "$CLIENT" ]; then
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
-limPER=$($BASEDIR/iniget.sh $CONFIG diskspace limitPER)
-limGB=$($BASEDIR/iniget.sh $CONFIG diskspace limitGB)
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
+limPER=$($BASEDIR/iniget.sh $CONFIG threshold DISK_USAGE_LIMIT_PER)
+limGB=$($BASEDIR/iniget.sh $CONFIG threshold DISK_USAGE_LIMIT_DB)
+SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
+ME=$(basename $0)
+
+echo "limPER: "$limPER
+echo "limGB: "$limGB
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
+  echo "++++++++++"
+  echo "HOST: "$HOST
+#-- skip for host
+  skip_outer_loop=0
+  for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
+     SCRIPTS=$(cut -d':' -f3- <<< $EXCL)
+     if [[ $(awk -F: '{print $1}' <<< $EXCL) = "$HOST" ]] && (grep -q "$ME" <<< "$SCRIPTS"); then
+       echo "Find EXCLUDE HOST: $HOST   in   EXCL: $EXCL"
+       echo "Find EXCLUDE SCRIPT: $ME   in   SCRIPTS: $SCRIPTS" ; skip_outer_loop=1; break
+     fi
+  done
+  if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi
+#-- end skip for host
+
   LOGF=$LOGDIR/mon_diskspace_${HOST}.log
   LOGF_HEAD=$LOGDIR/mon_diskspace_${HOST}_head.log
-  echo "HOST: "$HOST
-#  $BASEDIR/test_ssh.sh $CLIENT $HOST
-#  if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
+  $BASEDIR/test_ssh.sh $CLIENT $HOST
+  if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   OS=$($SSHCMD $HOST "uname")
   case "$OS" in
    Linux)
@@ -44,7 +63,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
           PCT_=$(cat $LOGF | grep -v "/mnt" | awk '/\/.*/{print $5" "int($4/1024/1024)}' | sed -e 's/%//' | sort -rn | head -1)
           PCT=$(echo "$PCT_" | cut -d " " -f 1)
           FS_=$(echo $PCT_ | cut -d " " -f 2)
-          ;;
+          ;;
   esac
   if [ -s $LOGF ]; then
     if [ "$PCT" -gt "$limPER" -a "$FS_" -lt "$limGB" ]; then

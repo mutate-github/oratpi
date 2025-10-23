@@ -37,7 +37,7 @@ echo "send_msg.sh NAME_PARENT: "$NAME_PARENT
 echo "send_msg.sh comm: "$(cat /proc/$PPID/comm)
 
 send_email()
-{ echo "send_msg.sh WMMAIL: "$WMMAIL ; printf %s "$msg" | $WMMAIL -s "$MPREFIX ${HOST}/${DB} ${ALL}" $ADMINS ; }
+{ echo "send_msg.sh WMMAIL: "$WMMAIL ; printf %s "$msg" | $WMMAIL -s "$MPREFIX ${HOST} ${DB} ${ALL}" $ADMINS ; }
 
 check_script_and_send_email()
 {

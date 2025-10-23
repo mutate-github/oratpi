@@ -9,15 +9,17 @@ if [ -n "$CLIENT" ]; then
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 WRTPI="$BASEDIR/rtpi"
 HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
-limPER=$($BASEDIR/iniget.sh $CONFIG fra limitPER)
+limPER=$($BASEDIR/iniget.sh $CONFIG threshold FRA)
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
+  echo "++++++++++"
   echo "HOST="$HOST
   $BASEDIR/test_ssh.sh $CLIENT $HOST
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
@@ -33,7 +35,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     if [ -s $LOGF_TRG ]; then
       echo "Fired: "$0"\n" > $LOGF_HEAD
       CUR_VAL=$((tail -1 | awk '{print $NF}')<"$LOGF_TRG")
-      cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "FRA usage warning (current: $CUR_VAL %, threshold: $limPER %)"
+      cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "FRA % usage warning (current: $CUR_VAL %, threshold: $limPER %)"
       rm $LOGF_HEAD
     fi
     rm $LOGF $LOGF_TRG

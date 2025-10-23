@@ -30,6 +30,8 @@ mon_swap.sh      - мониторинг swap
 mon_sysm_se.sh   - сборка sysmetrics в oracle standard edition
 mon_tbs.sh       - мониторинг табличных пространств
 mon_forlog.sh    - мониторинг включения force logging на archivelog \ open read write базах
+mon_aas.sh       - мониторинг % сессий от активных, испытывающих конкуренцию CONCUR COMMIT за последние 30 мин
+mon_oratop.sh    - мониторинг IORL - IO Read single block latency за последние 30 мин
 
 mon_all.sh       - общий скрипт, содержит в себе вызов всех или части имеющихся, запускается так:
 

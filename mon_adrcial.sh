@@ -9,6 +9,7 @@ if [ -n "$CLIENT" ]; then
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
@@ -24,6 +25,7 @@ me=$$
 ONE_EXEC_F=$BASEDIR/one_exec_mon_adrci_alert_${me}.sh
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
+  echo "++++++++++"
   echo "HOST="$HOST
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
   for DB in $(xargs -n1 echo <<< "$DBS"); do

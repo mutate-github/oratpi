@@ -1,6 +1,7 @@
 #!/bin/bash
 set -f
 # usage: startall_purge_traces.sh client_name
+# Talgat Mukhametshin dba.almaty@gmail.com 
 
 CLIENT="$1"
 BASEDIR=`dirname $0`
@@ -10,6 +11,7 @@ if [ -n "$CLIENT" ]; then
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
@@ -26,10 +28,13 @@ set -f
 # ps -ef | awk -F_ '/[p]mon/{print \$NF}' | while read i; do ./purge_traces.sh \$i; done
 #
 # usage purge_traces.sh \$ORACLE_SID
+# Talgat Mukhametshin dba.almaty@gmail.com
 if [ "\$1" = "" ]; then
     echo "Usage: \$0 sid"
     exit
 fi
+
+echo "Starting at: "\$(date +%d/%m/%y-%H:%M:%S)
 
 sid=\$1
 

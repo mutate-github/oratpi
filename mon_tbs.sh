@@ -9,30 +9,50 @@ if [ -n "$CLIENT" ]; then
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 WRTPI="$BASEDIR/rtpi"
 HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
-limPER=$($BASEDIR/iniget.sh $CONFIG tbs limitPER)
-limGB=$($BASEDIR/iniget.sh $CONFIG tbs limitGB)
+limPER=$($BASEDIR/iniget.sh $CONFIG threshold TBS_USAGE_LIMIT_PER)
+limGB=$($BASEDIR/iniget.sh $CONFIG threshold TBS_USAGE_LIMIT_GB)
+SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
+ME=$(basename $0)
+
+echo "limPER: "$limPER
+echo "limGB: "$limGB
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
+  echo "++++++++++"
   echo "HOST="$HOST
   $BASEDIR/test_ssh.sh $CLIENT $HOST
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
   for DB in $(xargs -n1 echo <<< "$DBS"); do
     echo "DB="$DB 
+#--- skip for host:db:script1:script2
+    skip_outer_loop_db=0
+    for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
+       HOST_=$(awk -F: '{print $1}' <<< $EXCL)
+       DB_=$(awk -F: '{print $2}' <<< $EXCL)
+       SCRIPTS_=$(cut -d':' -f3- <<< $EXCL)
+       if [[ "$HOST_" = "$HOST" || "$HOST_" = % ]] && [[ "$DB_" = "$DB" || "$DB_" = % ]]  && [[ "$SCRIPTS_" == *"$ME"* || "$SCRIPTS_" == *%* ]]; then
+         echo "Find EXCLUDE HOST:   $HOST in   EXCL: $EXCL"
+         echo "Find EXCLUDE DB:     $DB   in   EXCL: $EXCL"
+         echo "Find EXCLUDE SCRIPT: $ME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop_db=1; break
+       fi
+    done
+    if [ "$skip_outer_loop_db" -eq 1 ]; then echo "SKIP and continue outher loop db!"; continue; fi
+#--- end skip for db
+    
     LOGF=$LOGDIR/mon_tbs_${HOST}_${DB}.log
     LOGF_TRG=$LOGDIR/mon_tbs_${HOST}_${DB}_trg.log
     LOGF_HEAD=$LOGDIR/mon_tbs_${HOST}_${DB}_heading_$$.log
     $WRTPI $HOST $DB tbs free | awk '/Tablespace_Name/,/Elapsed/' | egrep -v "Elapsed" > $LOGF
 #    awk -v lim=$limPER '{if($NF+0>=lim) {print $0}}' $LOGF > $LOGF_TRG
     awk -v lim=$limPER -v gb=$limGB '{if($NF+0>=lim && $(NF-3)<gb*1024) {print $0}}' $LOGF > $LOGF_TRG
-    echo "limPER: "$limPER
-    echo "limGB: "$limGB
     cat "$LOGF_TRG"
 
     if [ -s $LOGF_TRG ]; then

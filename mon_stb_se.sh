@@ -10,6 +10,7 @@ if [ -n "$CLIENT" ]; then
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}  Starting at: "$(date)
 
 # $1 is client name
@@ -20,13 +21,14 @@ ADMINS=`$BASEDIR/iniget.sh $CONFIG admins email`
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SET_ENV_F="$BASEDIR/set_env"
 SET_ENV=`cat $SET_ENV_F`
-SEQ_GAP=$($BASEDIR/iniget.sh $CONFIG standby seq_gap)
-LAG_MINUTES=$($BASEDIR/iniget.sh $CONFIG standby lag_minutes)
 REPEAT_MINUTES=$($BASEDIR/iniget.sh $CONFIG mail repeat_minutes)
 REPEAT_AT=$($BASEDIR/iniget.sh $CONFIG mail repeat_at)
+SEQ_GAP=$($BASEDIR/iniget.sh $CONFIG threshold STB_SEQ_GAP)
+LAG_MINUTES=$($BASEDIR/iniget.sh $CONFIG threshold STB_LAG_MINUTES)
 HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
+  echo "++++++++++"
   CFG_STB_SE=`$BASEDIR/iniget.sh $CONFIG standby $HOST`  #aisutf:aisstb
   for CFG_STB_LINE in $(xargs -n1 echo <<< "$CFG_STB_SE"); do
     echo "DEBUG:  CFG_STB_LINE="$CFG_STB_LINE

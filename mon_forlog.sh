@@ -8,6 +8,7 @@ if [ -n "$CLIENT" ]; then
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
@@ -19,6 +20,7 @@ SET_ENV_F="$BASEDIR/set_env"
 SET_ENV=$(<$SET_ENV_F)
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
+  echo "++++++++++"
   echo "HOST="$HOST
 #  $BASEDIR/test_ssh.sh $CLIENT $HOST
 #  if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi

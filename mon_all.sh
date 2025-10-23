@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -f ~/.keychain/${HOSTNAME}-sh ]; then
+    source ~/.keychain/${HOSTNAME}-sh
+fi
+
 CLIENT="$1"
 BASEDIR=`dirname $0`
 echo $BASEDIR
@@ -59,10 +63,14 @@ echo "Monitor: =================================================================
 $BASEDIR/mon_resumab.sh $CLIENT
 echo "Monitor: ================================================================================ mon_pga.sh "$(date)
 $BASEDIR/mon_pga.sh $CLIENT
-echo "Monitor: ================================================================================ mon_forlog.sh "$(date)
-$BASEDIR/mon_forlog.sh $CLIENT
 echo "Monitor: ================================================================================ mon_lock.sh "$(date)
 $BASEDIR/mon_lock.sh $CLIENT
+echo "Monitor: ================================================================================ mon_forlog.sh "$(date)
+$BASEDIR/mon_forlog.sh $CLIENT
+echo "Monitor: ================================================================================ mon_aas.sh "$(date)
+$BASEDIR/mon_aas.sh $CLIENT
+echo "Monitor: ================================================================================ mon_oratop.sh "$(date)
+$BASEDIR/mon_oratop.sh $CLIENT
 echo "Monitor: ================================================================================ kill_sniped.sh "$(date)
 $BASEDIR/kill_sniped.sh $CLIENT
 echo "FINISH ALL MONITORING ****************************************************************************"$(date)
