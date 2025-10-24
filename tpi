@@ -1,7 +1,7 @@
 #!/bin/bash
 set -f
-TPIVER="15.10.25"
-# echo "version $TPIVER by Talgat Mukhametshin mutate@mail.ru  last version: https://github.com/mutate-github/oratpi"
+TPIVER="24.10.25"
+# echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 
 # echo "tpi: "$* 
 _P1_=$1
@@ -61,15 +61,15 @@ init_msg()
   rman__="rman [DAYS|dftb|cfg|last|arch [SEQUENCE] | recovery] - RMAN backups | df_to_backup | v\$rman_configuration information | last - hours passed since the last backup | arch - last backup archivelog"
   get_ddl__="get_ddl TYPE OBJECT (OWNER) - dbms_metadata.get_ddl extract dml, OBJECT - may be % or %mask%"
   trace__="trace [SID SERIAL LEVEL] [db {on|off}] - Trace for session, Level: 0-Disable, 1-Enable, 4-Enable with Binds, 8-Enable with Waits, 12-4+8, Trace all db sessions: on \ off"
-  kill__="kill [SID SERIAL INST_ID] | [idle NUM_HOURS] | [where USERNAME=\"\'\"SomeUser\"\'\"] | [ zombie_unix_list | zombie_win_list ] - Kill session, idle 5 - kill idle sessions for 5 hours and more, zombie_unix_list - only show zombie"
-  exec__="exec [pt] \"sql_statement\" - execute \"SQL Commands\"  Note: Must be escaped with \\ character: \$.   ( pt \"select * from gv\\\$sql_shared_cursor  where sql_id='bpq3apk5q2c6z'\"  )     ( exec  'alter system set \"_ash_sample_all\"=true' )"
+  kill__="kill [SID SERIAL INST_ID] | [idle NUM_HOURS] | [where S.USERNAME=\'SomeUser\'] | [ zombie_unix_list | zombie_win_list ] - Kill session, idle 5 - kill idle sessions for 5 hours and more, zombie_unix_list - only show zombie"
+  exec__="exec [pt] \"sql_statement\" - execute \"SQL Commands\"  Note: Must be escaped with \\ character: \$.   ( pt \"select * from gv\\\$sql_shared_cursor  where sql_id=''bpq3apk5q2c6z''\"  )     ( exec  'alter system set \"_ash_sample_all\"=true' )"
   alert__="alert [num] - tail -num alert_[sid].log, default num = 100"
   report__="report [ash {text|html} -60] -for last hour, [awr {text|html} DD/MM/YYYY HH24_begin HH24_end], [awrdd {text|html} DD1/MM/YYYY HH24_begin HH24_end DD2/MM/YYYY HH24_begin HH24_end], [awrsql {text|html} DD/MM/YYYY HH24_begin HH24_end sql_id], [addm text DD/MM/YYYY HH24_begin HH24_end] - oracle reports"
   corrupt__="corrupt [{rowid|dba} ID] | [fb (FILE) (BLOCK)] - Find object by ROWID, Find object by DBA, Find DB Object in dba_extents by file/block, v\$database_block_corruption v\$nonlogged_block information"
   sql__="sql [ [top] | [SQL_ID | SQLTEXT] | [plan SQL_ID] | [expand SQL_ID] | [sqlarea_vercnt] | [child_reason SQL_ID] | sql_bind_metadata SQL_ID | sql_shared_cursor SQL_ID | [sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] ] - Find out sql_id by SQLTEXT\SQL_ID from V\$SQL, plan from VSQL_PLAN by sql_id, sqlstat from V\$SQLSTAT by sql_id, GV$\SQLAREA"
-  ash__="ash [in=INST_ID] [con=[CON_ID]]  [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV\$ACTIVE_SESSION_HISTORY"
-  dhash__="dhash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|pio|lio|cpu|exe|ela|fch|sor|iow|row] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|event|wait_class] | growseg [TBS] [SEGMENT] | segstat [SEGMENT] [OWNER] [SORT_COL] | temp [sizeMb] | (umc)chart | iostat [df|redo|ctl|temp|arch|other] ] | awrinfo - Top SQL, Events, Sessions DBA_HIST_ACTIVE_SESS_HISTORY"
-  spm__="spm [days def7 - baselines] [find %|SQL_HANDLE SQL_PLAN_NAME] [ blplan %|SQL_HANDLE (PLAN_NAME) | blexec [count] | bllpfcc SQL_ID PLAN_HASH_VALUE [SQL_HANDLE] | bllpfawr SQL_ID PLAN_HASH_VALUE MIN_SNAP_ID MAX_SNAP_ID | blchattr SQL_HANDLE PLAN_NAME ATTR VALUE | blchplan NEW_SQL_ID NEW_PHV OLD_SQLSET_NAME | blevolve SQL_HANDLE PLAN_NAME | sqlset_list SQLSET_NAME OWNER | sqlset_plan SQLSET_NAME SQL_ID [PHV] | sqlset_drop SQLSET_NAME | bldrop SQL_HANDLE (PLAN_NAME) | sqltune [SQL_ID | awr SQL_ID begin_snap end_snap]  | sqltune_report TASK_NAME | sqltune_accept TASK_NAME | sqltune_create_plan_bl TASK_NAME OWNER PLAN_HASH_VALUE | sqltune_list [TASK_NAME] [cnt] | sqltune_drop TASK_NAME | sql_profiles | import_sql_profile SQL_ID_SRC PHV_SRC SQL_ID_TARGET | sql_profile_chattr TASK_NAME ATTR VALUE  | sql_profile_drop NAME | hints profile|baseline|patch NAME | sqlpatch_list | sqlpatch_create SQL_ID 'HINTS\"\\'\"' | sqlpatch_alter PATCHNAME enable|disable | sqlpatch_drop PATCHNAME | report_sql_monitor SQL_ID ]"
+  ash__="ash [in=INST_ID] [con=[CON_ID]]  [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV\$ACTIVE_SESSION_HISTORY  escape \' "
+  dhash__="dhash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|pio|lio|cpu|exe|ela|fch|sor|iow|row] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | growseg [TBS] [SEGMENT] | segstat [SEGMENT] [OWNER] [SORT_COL] | temp [sizeMb] | (umc)chart | iostat [df|redo|ctl|temp|arch|other] ] | awrinfo - Top SQL, Events, Sessions DBA_HIST_ACTIVE_SESS_HISTORY esape \'"
+  spm__="spm [days def7 - baselines] [find %|SQL_HANDLE SQL_PLAN_NAME] [ blplan %|SQL_HANDLE (PLAN_NAME) | blexec [count] | bllpfcc SQL_ID PLAN_HASH_VALUE [SQL_HANDLE] | bllpfawr SQL_ID PLAN_HASH_VALUE MIN_SNAP_ID MAX_SNAP_ID | blchattr SQL_HANDLE PLAN_NAME ATTR VALUE | blchplan NEW_SQL_ID NEW_PHV OLD_SQLSET_NAME | blevolve SQL_HANDLE PLAN_NAME | sqlset_list SQLSET_NAME OWNER | sqlset_plan SQLSET_NAME SQL_ID [PHV] | sqlset_drop SQLSET_NAME | bldrop SQL_HANDLE (PLAN_NAME) | sqltune [SQL_ID | awr SQL_ID begin_snap end_snap]  | sqltune_report TASK_NAME | sqltune_accept TASK_NAME | sqltune_create_plan_bl TASK_NAME OWNER PLAN_HASH_VALUE | sqltune_list [TASK_NAME] [cnt] | sqltune_drop TASK_NAME | sql_profiles | import_sql_profile SQL_ID_SRC PHV_SRC SQL_ID_TARGET | sql_profile_chattr TASK_NAME ATTR VALUE  | sql_profile_drop NAME | hints profile|baseline|patch NAME | sqlpatch_list | sqlpatch_create SQL_ID \'HINTS\' | sqlpatch_alter PATCHNAME enable|disable | sqlpatch_drop PATCHNAME | report_sql_monitor SQL_ID ]"
 }
 
 init_msg
@@ -6507,6 +6507,9 @@ col entry_name for a45
 col owner for a30
 col OBJECT_NAME for a35
 col OBJECT_type for a35
+col SQL_OPNAME for a20
+col SQL_PLAN_OPERATION for a20
+col SQL_PLAN_OPTIONS for a20
 col top_level_sql_id for a14
 col top_level_call_name for a20'
 
@@ -7557,6 +7560,9 @@ col entry_name for a45
 col owner for a30
 col object_name for a30
 col object_type for a30
+col SQL_OPNAME for a20
+col SQL_PLAN_OPERATION for a20
+col SQL_PLAN_OPTIONS for a20
 
 column top_level_sql_id for a14
 column top_level_call_name for a20'
@@ -8944,13 +8950,13 @@ case $VALUEP in
       esac ;;
   *)          slash='/'
       case $DB_VER_ in
-         8|9|10)  CMD1_="select value||'$slash'||'alert_$ORACLE_SID.log' from v\$system_parameter where name='background_dump_dest';" ;;
-         *)       CMD1_="select value||'$slash'||'alert_$ORACLE_SID.log' from V\$DIAG_INFO where name='Diag Trace';" ;;
+         8|9|10)  CMD1_="select value from v\$system_parameter where name='background_dump_dest';" ;;
+         *)       CMD1_="select value from V\$DIAG_INFO where name='Diag Trace';" ;;
       esac ;;
 esac
 
 case $VALUEP in
-  Microsoft*) 
+  Microsoft*)
 $SP <<EOF >$LOGF
 set lines 220 timing off
 set echo off feed off veri off tab off termout off pages 0
@@ -8959,19 +8965,30 @@ col db_name new_value db_name
 $CMD1_
 select INSTANCE_NAME db_name from v\$instance;
 
-create or replace directory alert_log_dir as '&&value';
-drop TABLE alert_log_table ;
-CREATE TABLE alert_log_table (TEXT VARCHAR2(400))
-ORGANIZATION EXTERNAL (
- TYPE oracle_loader
- DEFAULT DIRECTORY alert_log_dir
- ACCESS PARAMETERS (
-  RECORDS DELIMITED BY NEWLINE
-  NOBADFILE NODISCARDFILE NOLOGFILE
-  FIELDS TERMINATED BY '0x0A'
-  MISSING FIELD VALUES ARE NULL)
- LOCATION ('alert_&&db_name..log'))
-REJECT LIMIT unlimited;
+set serveroutput on
+declare
+  cnt integer;
+begin
+  select count(*) into cnt from user_tables where table_name='ALERT_LOG_TABLE';
+  if cnt = 0 then
+    dbms_output.put_line('Creating directory alert_log_dir and alert_log_table...');
+    execute immediate 'create or replace directory alert_log_dir as ''&&value'' ';
+--    drop TABLE alert_log_table ;
+    execute immediate 'CREATE TABLE alert_log_table (TEXT VARCHAR2(400))
+    ORGANIZATION EXTERNAL (
+     TYPE oracle_loader
+     DEFAULT DIRECTORY alert_log_dir
+     ACCESS PARAMETERS (
+      RECORDS DELIMITED BY NEWLINE
+      DISABLE_DIRECTORY_LINK_CHECK
+      NOBADFILE NODISCARDFILE NOLOGFILE
+     FIELDS TERMINATED BY ''0x0A''
+      MISSING FIELD VALUES ARE NULL)
+     LOCATION (''alert_&&db_name..log''))
+    REJECT LIMIT unlimited';
+  end if;
+end;
+/
 
 WITH alert_log AS ( SELECT rownum as lineno, text FROM alert_log_table)
 SELECT text FROM alert_log WHERE lineno > (SELECT count(*)-$NUM_ FROM alert_log_table)
@@ -8984,8 +9001,9 @@ set pagesize 0 feedback off verify off heading off echo off timing off
 $CMD1_
 END
 )
-VALUE=$(tr -d '\r' <<< "$VALUE")
-echo $VALUE
+VALUE=$(tr -d '\r' <<< "$VALUE")${slash}alert_${ORACLE_SID}.log
+echo ${VALUE}
+# for ssh only
 tail -$NUM_ $VALUE
   ;;
 esac
