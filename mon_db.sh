@@ -23,6 +23,12 @@ ME=$(basename $0)
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST="$HOST
+  
+  $BASEDIR/test_ssh.sh $CLIENT $HOST
+  if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
+  DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
+  for DB in $(xargs -n1 echo <<< "$DBS"); do
+    echo "DB="$DB
 #--- skip for host:db:script1:script2
     skip_outer_loop_db=0
     for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
@@ -37,12 +43,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     done
     if [ "$skip_outer_loop_db" -eq 1 ]; then echo "SKIP and continue outher loop db!"; continue; fi
 #--- end skip for db
-  
-  $BASEDIR/test_ssh.sh $CLIENT $HOST
-  if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
-  DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
-  for DB in $(xargs -n1 echo <<< "$DBS"); do
-    echo "DB="$DB
+
     LOGF=$LOGDIR/mon_db_${HOST}_${DB}.log
     $WRTPI $HOST $DB db | sed -n '/V$INSTANCE:/,/V$DATABASE:/p' | egrep -v '\----|V\$DATABASE:' | sed '/^$/d' > $LOGF
 
