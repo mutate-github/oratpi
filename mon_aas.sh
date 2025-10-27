@@ -59,15 +59,17 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 
     $WRTPI $HOST $DB ash uchart | awk  '/^BEGIN_TIME |^[0-9]/' > $LOGF
 
+    GLINES="31"
+
     NUM_COL_AAS=$(awk  '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="AAS") print i }' $LOGF)
     NUM_COL_CONCUR=$(awk  '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="CONCUR") print i }' $LOGF)
 #    echo "NUM_COL_AAS: "$NUM_COL_AAS
 #    echo "NUM_COL_CONCUR: "$NUM_COL_CONCUR
 
-    cat $LOGF | tail -31 | awk -v AAS="$NUM_COL_AAS" -v CONCUR="$NUM_COL_CONCUR" \
-        '{ if ($1 ~ /^[0-9][0-9]\/.*$/) {as+=$AAS; co+=$CONCUR; lin+=1} } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); printf " as: %.2f", as; printf " co: %.2f", co;  printf " lin: %.0f", lin;  printf " avas: %.2f", avas; printf " avco: %.2f ", avco; (avas>0 ? perco=avco/avas*100 : 0);  printf " perconcur: %.2f", perco }'
-    VALUE=$(cat $LOGF | tail -31 | awk -v AAS="$NUM_COL_AAS" -v CONCUR="$NUM_COL_CONCUR" '{ if ($1 ~ /^[0-9][0-9]\/.*$/) {as+=$AAS; co+=$CONCUR; lin+=1} } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); (avas>0 ? perco=avco/avas*100 : 0); printf "%.0f", perco }')
-    echo -e "\nVALUE: "$VALUE
+    awk '/^[0-9][0-9]\/.*$/' $LOGF | tail -$GLINES | awk -v AAS="$NUM_COL_AAS" -v CONCUR="$NUM_COL_CONCUR" \
+        '{ as+=$AAS; co+=$CONCUR; lin+=1 } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); printf " as: %.2f", as; printf " co: %.2f", co;  printf " lin: %.0f", lin;  printf " avas: %.2f", avas; printf " avco: %.2f ", avco; perco=(avas>0 ? avco/avas*100 : 0);  printf " perconcur: %.2f", perco }'
+    VALUE=$(awk '/^[0-9][0-9]\/.*$/' $LOGF | tail -$GLINES | awk -v AAS="$NUM_COL_AAS" -v CONCUR="$NUM_COL_CONCUR" '{ as+=$AAS; co+=$CONCUR; lin+=1 } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); if (avco>1) {perco=(avas>0 ? avco/avas*100 : 0); printf "%.0f", perco} else print 0; }')
+    echo -e "  VALUE: "$VALUE
     if [ "$VALUE" -gt "$AAS_CONCUR_LIMIT" ]; then
       cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "CONCUR % Warning in last 30 min, current: $VALUE, threshold: $AAS_CONCUR_LIMIT"
     fi
@@ -76,10 +78,10 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 
     NUM_COL_COMMIT=$(awk  '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="COMMIT") print i }' $LOGF)
 
-    cat $LOGF | tail -31 | awk -v AAS="$NUM_COL_AAS" -v COMMIT="$NUM_COL_COMMIT" \
-        '{ if ($1 ~ /^[0-9][0-9]\/.*$/) {as+=$AAS; co+=$COMMIT; lin+=1} } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); printf " as: %.2f", as; printf " co: %.2f", co;  printf " lin: %.0f", lin;  printf " avas: %.2f", avas; printf " avco: %.2f ", avco; (avas>0 ? perco=avco/avas*100 : 0);  printf " percommit: %.2f", perco }'
-    VALUE=$(cat $LOGF | tail -31 | awk -v AAS="$NUM_COL_AAS" -v COMMIT="$NUM_COL_COMMIT" '{ if ($1 ~ /^[0-9][0-9]\/.*$/) {as+=$AAS; co+=$COMMIT; lin+=1} } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); (avas>0 ? perco=avco/avas*100 : 0); printf "%.0f", perco }')
-    echo -e "\nVALUE: "$VALUE
+    awk '/^[0-9][0-9]\/.*$/' $LOGF | tail -$GLINES | awk -v AAS="$NUM_COL_AAS" -v COMMIT="$NUM_COL_COMMIT" \
+        '{ as+=$AAS; co+=$COMMIT; lin+=1 } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); printf " as: %.2f", as; printf " co: %.2f", co;  printf " lin: %.0f", lin;  printf " avas: %.2f", avas; printf " avco: %.2f ", avco; perco=(avas>0 ? avco/avas*100 : 0);  printf " percommit: %.2f", perco }'
+    VALUE=$(awk '/^[0-9][0-9]\/.*$/' $LOGF | tail -$GLINES | awk -v AAS="$NUM_COL_AAS" -v COMMIT="$NUM_COL_COMMIT" '{ as+=$AAS; co+=$COMMIT; lin+=1 } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); if (avco>1) {perco=(avas>0 ? avco/avas*100 : 0); printf "%.0f", perco} else print 0; }')
+    echo -e "  VALUE: "$VALUE
     if [ "$VALUE" -gt "$AAS_COMMIT_LIMIT" ]; then
       cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "COMMIT % Warning in last 30 min, current: $VALUE, threshold: $AAS_COMMIT_LIMIT"
     fi
