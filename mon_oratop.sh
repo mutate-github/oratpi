@@ -62,32 +62,35 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 
     NUM_COL_IORL=$(awk  '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="IORL") print i }' $LOGF)
     echo -n "NUM_COL_IORL: "$NUM_COL_IORL
+    sed '1,2d' $LOGF | sed '$d' > ${LOGF}.cut.log  # cut 1,2 (heap) and last line - bad statistics
     GLINES="31"
 
-    cat $LOGF | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ if ($1 ~ /^[0-9][0-9]\/.*$/) {iorltotal+=$IORL; lin+=1} } END {printf " iorltotal: %.0f", iorltotal; printf " lin: %.0f", lin; (lin>0 ? iorlav=iorltotal/lin : 0);  printf " iorlav: %.2f", iorlav }'
-    VALUE_IORL=$(cat $LOGF | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ if ($1 ~ /^[0-9][0-9]\/.*$/) {iorltotal+=$IORL; lin+=1} } END {(lin>0 ? iorlav=iorltotal/lin : 0);  printf "%.0f", iorlav }')
+    cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {printf " iorltotal: %.0f", iorltotal; printf " lin: %.0f", lin; (lin>0 ? iorlav=iorltotal/lin : 0);  printf " iorlav: %.2f", iorlav }'
+    VALUE_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {(lin>0 ? iorlav=iorltotal/lin : 0);  printf "%.0f", iorlav }')
     echo -n  "  VALUE_IORL: "$VALUE_IORL
     if [ "$VALUE_IORL" -gt "$ORATOP_IORL_LIMIT" ]; then
       cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "IORL Warning in last 30 min, current: $VALUE_IORL, threshold: $ORATOP_IORL_LIMIT"
     fi
 
-    NUM_COL_DBTM=$(awk  '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="DBTM") print i }' $LOGF)
+    NUM_COL_DBTM=$(awk '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="DBTM") print i }' $LOGF)
     echo ""
     echo -n "NUM_COL_DBTM: "$NUM_COL_DBTM
-    HALF_LINES=$(( $(tail -$GLINES $LOGF | awk '/^[0-9][0-9]\/.*$/' | wc -l) / 2 ))
-    VALUE_DBTMAV=$(awk '/^[0-9][0-9]\/.*$/' $LOGF | tail -$GLINES | awk -v DBTM="$NUM_COL_DBTM" '{ if ($1 ~ /^[0-9][0-9]\/.*$/) {dbtm+=$DBTM; lin+=1} } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
-    VALUE_1HALFAV=$(awk '/^[0-9][0-9]\/.*$/' $LOGF | head -$HALF_LINES | awk -v DBTM="$NUM_COL_DBTM" '{ if ($1 ~ /^[0-9][0-9]\/.*$/) {dbtm+=$DBTM; lin+=1} } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
-    VALUE_2HALFAV=$(awk '/^[0-9][0-9]\/.*$/' $LOGF | tail -$HALF_LINES | awk -v DBTM="$NUM_COL_DBTM" '{ if ($1 ~ /^[0-9][0-9]\/.*$/) {dbtm+=$DBTM; lin+=1} } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
+    HALF_LINES=$(( $(tail -$GLINES ${LOGF}.cut.log | wc -l) / 2 ))
+    VALUE_DBTMAV=$(tail -$GLINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
+    VALUE_1HALFAV=$(head -$HALF_LINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
+    VALUE_2HALFAV=$(tail -$HALF_LINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
     echo -n "  VALUE_DBTMAV: "$VALUE_DBTMAV
     echo -n "  VALUE_1HALFAV: "$VALUE_1HALFAV
     echo -n "  VALUE_2HALFAV: "$VALUE_2HALFAV
-#    DOUBLE_1HALFAV=$(( $VALUE_1HALFAV + $VALUE_1HALFAV ))
+#    DOUBLE_1HALFAV=$(( $VALUE_1HALFAV * 2 ))
 #    echo -n "  DOUBLE_1HALFAV: "$DOUBLE_1HALFAV
-    TRIPLE_1HALFAV=$(( $VALUE_1HALFAV + $VALUE_1HALFAV + $VALUE_1HALFAV ))
+    TRIPLE_1HALFAV=$(( $VALUE_1HALFAV * 3 ))
     echo -n "  TRIPLE_1HALFAV: "$TRIPLE_1HALFAV
+#    QUADRUPLE_1HALFAV=$(( $VALUE_1HALFAV * 4 ))
+#    echo -n "  QUADRUPLE_1HALFAV: "$QUADRUPLE_1HALFAV
     DIFF_2HALF_1HALF=$(( $VALUE_2HALFAV - VALUE_1HALFAV ))
     echo -n "  DIFF_2HALF_1HALF: "$DIFF_2HALF_1HALF
-    echo -n "  for triggering must VALUE_2HALFAV -gt TRIPLE_1HALFAV and  DIFF_2HALF_1HALF must be bigger than VALUE_DBTMAV and VALUE_1HALFAV -gt 20"
+    echo -n "  for triggering must VALUE_2HALFAV -gt TRIPLE_1HALFAV and DIFF_2HALF_1HALF must be bigger than VALUE_DBTMAV and VALUE_1HALFAV -gt 20"
     echo ""
     if [[ "$VALUE_2HALFAV" -gt "$TRIPLE_1HALFAV" && "$DIFF_2HALF_1HALF" -gt "$VALUE_DBTMAV" && "$VALUE_1HALFAV" -gt 20 ]]; then
       cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "DBTM Warning in last 30 min: last 15min: $VALUE_2HALFAV tripled are bigger than first 15min: $VALUE_1HALFAV"
