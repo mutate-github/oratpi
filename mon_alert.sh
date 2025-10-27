@@ -29,10 +29,13 @@ SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 ME=$(basename $0)
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
+  echo "++++++++++"
+  echo "HOST="$HOST
   $BASEDIR/test_ssh.sh $CLIENT $HOST
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
   for DB in $(xargs -n1 echo <<< "$DBS"); do
+    echo "DB="$DB
 #--- skip for host:db:script1:script2
     skip_outer_loop_db=0
     for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
@@ -56,7 +59,6 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     $BASEDIR/iniget.sh $CONFIG alert:${HOST}:${DB} exclude >> $EXCLFILE
     AWKFILE=$LOGDIR/mon_alert_${HOST}_${DB}_awkfile.awk
 
-    echo "START HOST="$HOST "DB="$DB "at: "$(date)
     $WRTPI $HOST $DB alert $LINES > $LOGF
     sed -i '1d' $LOGF
     head -1 $LOGF > $LOGF_HEAD

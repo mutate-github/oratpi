@@ -53,7 +53,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
           FS_=$(echo $PCT_ | cut -d " " -f 2)
           ;;
    AIX)   $SSHCMD "$HOST" "/usr/sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1; echo ""; df -k" > $LOGF
-          cat $LOGF
+#          cat $LOGF
           PCT_=$(cat $LOGF | egrep -v "-" | awk '/\/.*/{print $4" "int($3/1024/1024)}' | sed -e 's/%//' | sort -rn | head -1)
           PCT=$(echo "$PCT_" | cut -d " " -f 1)
           FS_=$(echo $PCT_ | cut -d " " -f 2)
