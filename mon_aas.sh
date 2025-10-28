@@ -22,6 +22,8 @@ SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 ME=$(basename $0)
 AAS_CONCUR_LIMIT=$($BASEDIR/iniget.sh $CONFIG threshold AAS_CONCUR_LIMIT)
 AAS_COMMIT_LIMIT=$($BASEDIR/iniget.sh $CONFIG threshold AAS_COMMIT_LIMIT)
+echo "AAS_CONCUR_LIMIT: "$AAS_CONCUR_LIMIT
+echo "AAS_COMMIT_LIMIT: "$AAS_COMMIT_LIMIT
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"

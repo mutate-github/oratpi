@@ -21,6 +21,9 @@ WRTPI="$BASEDIR/rtpi"
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 ME=$(basename $0)
 ORATOP_IORL_LIMIT=$($BASEDIR/iniget.sh $CONFIG threshold ORATOP_IORL_LIMIT)
+ORATOP_DBTM_X=$($BASEDIR/iniget.sh $CONFIG threshold ORATOP_DBTM_X)
+echo "ORATOP_IORL_LIMIT: "$ORATOP_IORL_LIMIT
+echo "ORATOP_DBTM_X: "$ORATOP_DBTM_X
 
 echo "SCRIPTS_EXCLUDE: "$SCRIPTS_EXCLUDE
 echo "ME: "$ME
@@ -55,7 +58,6 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 # for oratop h
 #1                     2      3    4    5    6      7      8     9    10    11    12    13    14    15     16       17       18     19      20     21         22      23      24     25     26   27   28   29
 #BEGIN_TIME        HCPUB CPUUPS LOAD DCTR DWTR   SPFR   TPGA   SCT   AAS   AST ASCPU  ASIO  ASWA  ASPQ   UTPS     UCPS     SSRT IOMBPS    IOPS   IORL       LOGR    PHYR    PHYW   TEMP   DBTM   IN  CON NCPU
-#----------------- ----- ------ ---- ---- ---- ------ ------ ----- ----- ----- ----- ----- ----- ----- ------ -------- -------- ------ ------- ------ ---------- ------- ------- ------ ------ ---- ---- ----
 #22/10/25-13:21:54     0      0    0   87   12      9    699   119     0     1     1     0     0     0      0        1       14      0       5      0        587       0       0      0      0    1    0    8
 
     $WRTPI $HOST $DB oratop h | awk  '/^BEGIN_TIME |^[0-9]/' > $LOGF
@@ -66,34 +68,31 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     GLINES="31"
 
     cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {printf " iorltotal: %.0f", iorltotal; printf " lin: %.0f", lin; (lin>0 ? iorlav=iorltotal/lin : 0);  printf " iorlav: %.2f", iorlav }'
-    VALUE_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {(lin>0 ? iorlav=iorltotal/lin : 0);  printf "%.0f", iorlav }')
-    echo -n  "  VALUE_IORL: "$VALUE_IORL
-    if [ "$VALUE_IORL" -gt "$ORATOP_IORL_LIMIT" ]; then
-      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "IORL Warning in last 30 min, current: $VALUE_IORL, threshold: $ORATOP_IORL_LIMIT"
+    VAL_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {(lin>0 ? iorlav=iorltotal/lin : 0);  printf "%.0f", iorlav }')
+    echo -n  "  VAL_IORL: "$VAL_IORL
+    if [ "$VAL_IORL" -gt "$ORATOP_IORL_LIMIT" ]; then
+      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "IORL Warning in last 30 min, current: $VAL_IORL, threshold: $ORATOP_IORL_LIMIT"
     fi
 
     NUM_COL_DBTM=$(awk '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="DBTM") print i }' $LOGF)
     echo ""
     echo -n "NUM_COL_DBTM: "$NUM_COL_DBTM
     HALF_LINES=$(( $(tail -$GLINES ${LOGF}.cut.log | wc -l) / 2 ))
-    VALUE_DBTMAV=$(tail -$GLINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
-    VALUE_1HALFAV=$(head -$HALF_LINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
-    VALUE_2HALFAV=$(tail -$HALF_LINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
-    echo -n "  VALUE_DBTMAV: "$VALUE_DBTMAV
-    echo -n "  VALUE_1HALFAV: "$VALUE_1HALFAV
-    echo -n "  VALUE_2HALFAV: "$VALUE_2HALFAV
-#    DOUBLE_1HALFAV=$(( $VALUE_1HALFAV * 2 ))
-#    echo -n "  DOUBLE_1HALFAV: "$DOUBLE_1HALFAV
-    TRIPLE_1HALFAV=$(( $VALUE_1HALFAV * 3 ))
-    echo -n "  TRIPLE_1HALFAV: "$TRIPLE_1HALFAV
-#    QUADRUPLE_1HALFAV=$(( $VALUE_1HALFAV * 4 ))
-#    echo -n "  QUADRUPLE_1HALFAV: "$QUADRUPLE_1HALFAV
-    DIFF_2HALF_1HALF=$(( $VALUE_2HALFAV - VALUE_1HALFAV ))
+    VAL_DBTMAV=$(tail -$GLINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
+    VAL_1HALFAV=$(head -$HALF_LINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
+    VAL_2HALFAV=$(tail -$HALF_LINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
+    echo -n "  VAL_DBTMAV: "$VAL_DBTMAV
+    echo -n "  VAL_1HALFAV: "$VAL_1HALFAV
+    echo -n "  VAL_2HALFAV: "$VAL_2HALFAV
+    X_1HALFAV=$(( $VAL_1HALFAV * "$ORATOP_DBTM_X" ))
+    echo -n "  X_1HALFAV: "$X_1HALFAV
+
+    DIFF_2HALF_1HALF=$(( $VAL_2HALFAV - VAL_1HALFAV ))
     echo -n "  DIFF_2HALF_1HALF: "$DIFF_2HALF_1HALF
-    echo -n "  for triggering must VALUE_2HALFAV -gt TRIPLE_1HALFAV and DIFF_2HALF_1HALF must be bigger than VALUE_DBTMAV and VALUE_1HALFAV -gt 20"
+    echo -n "  for triggering must VAL_2HALFAV -gt VAL_1HALFAV * $ORATOP_DBTM_X and DIFF_2HALF_1HALF must be bigger than VAL_DBTMAV and VAL_1HALFAV -gt 60"
     echo ""
-    if [[ "$VALUE_2HALFAV" -gt "$TRIPLE_1HALFAV" && "$DIFF_2HALF_1HALF" -gt "$VALUE_DBTMAV" && "$VALUE_1HALFAV" -gt 20 ]]; then
-      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "DBTM Warning in last 30 min: last 15min: $VALUE_2HALFAV tripled are bigger than first 15min: $VALUE_1HALFAV"
+    if [[ "$VAL_2HALFAV" -gt "$X_1HALFAV" && "$DIFF_2HALF_1HALF" -gt "$VAL_DBTMAV" && "$VAL_1HALFAV" -gt 60 ]]; then
+      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "DBTM Warning in last 30 min: last 15min: $VAL_2HALFAV * $ORATOP_DBTM_X are bigger than first 15min: $VAL_1HALFAV"
     fi
   done
 done
