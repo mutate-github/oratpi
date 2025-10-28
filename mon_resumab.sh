@@ -18,6 +18,8 @@ WRTPI="$BASEDIR/rtpi"
 HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
 SET_ENV_F="$BASEDIR/set_env"
 SET_ENV=$(<$SET_ENV_F)
+RCNTLIM=$($BASEDIR/iniget.sh $CONFIG threshold resumable)
+echo "RCNTLIM: "$RCNTLIM
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
@@ -28,7 +30,6 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   for DB in $(xargs -n1 echo <<< "$DBS"); do
     echo "DB="$DB
     RCNT=$($WRTPI $HOST $DB resumable | awk '/^RESUMABLE_COUNT/{f=1;getline;getline}f')
-    RCNTLIM=$($BASEDIR/iniget.sh $CONFIG threshold resumable)
 
     if [[ -n "$RCNTLIM" && "$RCNT" -gt "$RCNTLIM" ]]; then
       echo "" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "RESUMABLE_COUNT sessions limit warning: (current: $RCNT, limit: $RCNTLIM)"

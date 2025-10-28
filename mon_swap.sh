@@ -20,6 +20,8 @@ SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 ME=$(basename $0)
 
+echo "limPER: "$limPER
+
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST: "$HOST

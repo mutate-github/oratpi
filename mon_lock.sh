@@ -19,7 +19,7 @@ HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
 THRESHOLD=$($BASEDIR/iniget.sh $CONFIG threshold enq_locks)
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 ME=$(basename $0)
-
+echo "THRESHOLD: "$THRESHOLD
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"

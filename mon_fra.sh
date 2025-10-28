@@ -17,6 +17,7 @@ if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 WRTPI="$BASEDIR/rtpi"
 HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
 limPER=$($BASEDIR/iniget.sh $CONFIG threshold FRA)
+echo "limPER: "$limPER
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"

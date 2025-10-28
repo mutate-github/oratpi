@@ -21,7 +21,7 @@ SET_ENV=$(<$SET_ENV_F)
 PGA_USAGE_LIMIT=$($BASEDIR/iniget.sh $CONFIG threshold PGA_USAGE_LIMIT)
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 ME=$(basename $0)
-
+echo "PGA_USAGE_LIMIT: "$PGA_USAGE_LIMIT
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"

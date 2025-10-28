@@ -19,6 +19,7 @@ SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 limPER=$($BASEDIR/iniget.sh $CONFIG threshold osload)
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 ME=$(basename $0)
+echo "limPER: "$limPER
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
@@ -50,7 +51,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
           ;;
    SunOS) $SSHCMD "$HOST" "uptime | awk '{printf (\"%3.0f\", \$(NF-1))}'" > $LOGF
           PCT=$(head -1 $LOGF)
-          ;;
+          ;;
   esac
   if [ -s $LOGF ]; then
     if [[ "$PCT" -ge "$limPER" ]]; then
