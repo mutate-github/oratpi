@@ -16,10 +16,25 @@ LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 SCRIPT_NAME=$(basename $0)
 HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
+SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
+ME=$(basename $0)
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST="$HOST
+
+  #-- skip for host
+  skip_outer_loop=0
+  for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
+     SCRIPTS=$(cut -d':' -f3- <<< $EXCL)
+     if [[ $(awk -F: '{print $1}' <<< $EXCL) = "$HOST" ]] && (grep -q "$ME" <<< "$SCRIPTS"); then
+       echo "Find EXCLUDE HOST: $HOST   in   EXCL: $EXCL"
+       echo "Find EXCLUDE SCRIPT: $ME   in   SCRIPTS: $SCRIPTS" ; skip_outer_loop=1; break
+     fi
+  done
+  if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi
+#-- end skip for host
+
   TRG_FILE="$LOGDIR/${SCRIPT_NAME}_${HOST}.trg"
   $BASEDIR/test_ssh.sh $CLIENT $HOST
   if [ "$?" -ne 0 ]; then
