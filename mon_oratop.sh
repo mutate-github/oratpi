@@ -77,6 +77,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     NUM_COL_DBTM=$(awk '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="DBTM") print i }' $LOGF)
     echo ""
     echo -n "NUM_COL_DBTM: "$NUM_COL_DBTM
+    tail -$GLINES ${LOGF}.cut.log > ${LOGF}.cut.log.tmp && mv ${LOGF}.cut.log.tmp ${LOGF}.cut.log
     HALF_LINES=$(( $(tail -$GLINES ${LOGF}.cut.log | wc -l) / 2 ))
     VAL_DBTMAV=$(tail -$GLINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
     VAL_1HALFAV=$(head -$HALF_LINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
