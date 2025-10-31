@@ -36,8 +36,8 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi
 #-- end skip for host
 
-  LOGF=$LOGDIR/mon_swap_${HOST}.log
-  LOGF_HEAD=$LOGDIR/mon_swap_${HOST}_head.log
+  LOGF=$LOGDIR/mon_load_${HOST}.log
+  LOGF_HEAD=$LOGDIR/mon_load_${HOST}_head.log
   $BASEDIR/test_ssh.sh $CLIENT $HOST
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   OS=$($SSHCMD $HOST "uname")
