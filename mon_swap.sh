@@ -49,8 +49,8 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
    AIX)   $SSHCMD "$HOST" "lsps -s | tail +2  | cut -d% -f1 | awk '{printf \$2}'" > $LOGF
           PCT=$(head -1 $LOGF)
           ;;
-   SunOS) # $SSHCMD "$HOST" "swap -s | awk '{ used = \$9; available = \$11; total = used + available; printf \"%.0f\n\", (used / total) * 100 }'" > $LOGF
-          $SSHCMD "$HOST" "used=\$(swap -s | awk '{print \$9}' | tr -d 'k'); avail=\$(swap -s | awk '{print \$11}' | tr -d 'k'); total=\$((used + avail)); percent=\$(( used * 100 / total )); echo -n \$percent" > $LOGF
+   SunOS) # $SSHCMD "$HOST" "/usr/sbin/swap -s | awk '{ used = \$9; available = \$11; total = used + available; printf \"%.0f\n\", (used / total) * 100 }'" > $LOGF
+          $SSHCMD "$HOST" "used=\$(/usr/sbin/swap -s | awk '{print \$9}' | tr -d 'k'); avail=\$(/usr/sbin/swap -s | awk '{print \$11}' | tr -d 'k'); total=\$((used + avail)); percent=\$(( used * 100 / total )); echo -n \$percent" > $LOGF
           PCT=$(head -1 $LOGF)
           ;;
   esac
