@@ -4,25 +4,32 @@ set -f
 # Talgat Mukhametshin dba.almaty@gmail.com 
 
 CLIENT="$1"
-BASEDIR=`dirname $0`
+HOST="$2"
+FILEPATH=$0
+BASEDIR=${FILEPATH%/*}
+SCRIPT_NAME=${FILEPATH##*/}
+LOCKFILE="/tmp/${SCRIPT_NAME}_${CLIENT}.pid"
+trap 'rm -f $LOCKFILE' EXIT TERM INT
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
+if ! $BASEDIR/checkalrun.sh $LOCKFILE $$; then exit 1; fi
+
 CONFIG="mon.ini"
 if [ -n "$CLIENT" ]; then
   shift
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
-echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
-HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
+[[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SET_ENV_F="$BASEDIR/set_env"
 SET_ENV=$(cat $SET_ENV_F)
-SCRIPT_NAME="$BASEDIR/purge_traces.sh"
+SCRIPT_NAME_PURGE="$BASEDIR/purge_traces.sh"
 
-cat <<EOFF >  $SCRIPT_NAME
+cat <<EOFF >  $SCRIPT_NAME_PURGE
 #!/bin/bash
 set -f
 # ps -ef | awk -F_ '/[p]mon/{print \$NF}' | while read i; do ./purge_traces.sh \$i; done
@@ -114,16 +121,16 @@ case \$(uname | awk -F_ '{print \$1}') in
 esac
 EOFF
 
-chmod u+x $SCRIPT_NAME
+chmod u+x $SCRIPT_NAME_PURGE
 
 for HOST in $(echo "$HOSTS" | xargs -n1 echo); do
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
   for DB in  $(echo "$DBS" | xargs -n1 echo); do
-    echo "========================================================================================================================="
+    echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
     echo "HOST=$HOST  DB=$DB  "$(date)
-    cat $SCRIPT_NAME | $SSHCMD $HOST "/bin/bash -s $DB"
+    cat $SCRIPT_NAME_PURGE | $SSHCMD $HOST "/bin/bash -s $DB"
   done # DB
 done # HOST
 
-# rm $SCRIPT_NAME
+# rm $SCRIPT_NAME_PURGE
 

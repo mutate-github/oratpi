@@ -3,23 +3,27 @@ set -f
 
 CLIENT="$1"
 HOST="$2"
-BASEDIR=$(dirname $0)
+FILEPATH=$0
+BASEDIR=${FILEPATH%/*}
+SCRIPT_NAME=${FILEPATH##*/}
+LOCKFILE="/tmp/${SCRIPT_NAME}_${CLIENT}.pid"
+trap 'rm -f $LOCKFILE' EXIT TERM INT
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
+if ! $BASEDIR/checkalrun.sh $LOCKFILE $$; then exit 1; fi
+
 CONFIG="mon.ini"
 if [ -n "$CLIENT" ]; then
   shift
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
-echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
-SCRIPT_NAME=$(basename $0)
 WRTPI="$BASEDIR/rtpi"
 [[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
-ME=$(basename $0)
 AAS_CONCUR_LIMIT=$($BASEDIR/iniget.sh $CONFIG threshold AAS_CONCUR_LIMIT)
 AAS_COMMIT_LIMIT=$($BASEDIR/iniget.sh $CONFIG threshold AAS_COMMIT_LIMIT)
 echo "AAS_CONCUR_LIMIT: "$AAS_CONCUR_LIMIT
@@ -41,10 +45,10 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
        HOST_=$(awk -F: '{print $1}' <<< $EXCL)
        DB_=$(awk -F: '{print $2}' <<< $EXCL)
        SCRIPTS_=$(cut -d':' -f3- <<< $EXCL)
-       if [[ "$HOST_" = "$HOST" || "$HOST_" = % ]] && [[ "$DB_" = "$DB" || "$DB_" = % ]]  && [[ "$SCRIPTS_" == *"$ME"* || "$SCRIPTS_" == *%* ]]; then
+       if [[ "$HOST_" = "$HOST" || "$HOST_" = % ]] && [[ "$DB_" = "$DB" || "$DB_" = % ]]  && [[ "$SCRIPTS_" == *"$SCRIPT_NAME"* || "$SCRIPTS_" == *%* ]]; then
          echo "Find EXCLUDE HOST:   $HOST in   EXCL: $EXCL"
          echo "Find EXCLUDE DB:     $DB   in   EXCL: $EXCL"
-         echo "Find EXCLUDE SCRIPT: $ME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop_db=1; break
+         echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop_db=1; break
        fi
     done
     if [ "$skip_outer_loop_db" -eq 1 ]; then echo "SKIP and continue outher loop db!"; continue; fi
@@ -73,7 +77,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     VALUE=$(awk '/^[0-9][0-9]\/.*$/' $LOGF | tail -$GLINES | awk -v AAS="$NUM_COL_AAS" -v CONCUR="$NUM_COL_CONCUR" '{ as+=$AAS; co+=$CONCUR; lin+=1 } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); if (avco>1) {perco=(avas>0 ? avco/avas*100 : 0); printf "%.0f", perco} else print 0; }')
     echo -e "  VALUE: "$VALUE
     if [ "$VALUE" -gt "$AAS_CONCUR_LIMIT" ]; then
-      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "CONCUR % Warning in last 30 min, current: $VALUE, threshold: $AAS_CONCUR_LIMIT"
+      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "CONCUR % Warning in last 30 min, current: $VALUE, threshold: $AAS_CONCUR_LIMIT"
     fi
 
 ############
@@ -85,7 +89,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     VALUE=$(awk '/^[0-9][0-9]\/.*$/' $LOGF | tail -$GLINES | awk -v AAS="$NUM_COL_AAS" -v COMMIT="$NUM_COL_COMMIT" '{ as+=$AAS; co+=$COMMIT; lin+=1 } END {avas=(lin>0 ? as/lin : 0); avco=(lin>0 ? co/lin : 0); if (avco>1) {perco=(avas>0 ? avco/avas*100 : 0); printf "%.0f", perco} else print 0; }')
     echo -e "  VALUE: "$VALUE
     if [ "$VALUE" -gt "$AAS_COMMIT_LIMIT" ]; then
-      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "COMMIT % Warning in last 30 min, current: $VALUE, threshold: $AAS_COMMIT_LIMIT"
+      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "COMMIT % Warning in last 30 min, current: $VALUE, threshold: $AAS_COMMIT_LIMIT"
     fi
   done
 done

@@ -2,19 +2,26 @@
 set -f
 
 CLIENT="$1"
-BASEDIR=$(dirname $0)
+HOST="$2"
+FILEPATH=$0
+BASEDIR=${FILEPATH%/*}
+SCRIPT_NAME=${FILEPATH##*/}
+LOCKFILE="/tmp/${SCRIPT_NAME}_${CLIENT}.pid"
+trap 'rm -f $LOCKFILE' EXIT TERM INT
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
+if ! $BASEDIR/checkalrun.sh $LOCKFILE $$; then exit 1; fi
+
 CONFIG="mon.ini"
 if [ -n "$CLIENT" ]; then
   shift
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
-echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
-HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
+[[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SET_ENV_F="$BASEDIR/set_env"
 SET_ENV=$(<$SET_ENV_F)

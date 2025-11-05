@@ -6,14 +6,21 @@ set -f
 #set -x
 
 CLIENT="$1"
-BASEDIR=$(dirname $0)
+HOST="$2"
+FILEPATH=$0
+BASEDIR=${FILEPATH%/*}
+SCRIPT_NAME=${FILEPATH##*/}
+LOCKFILE="/tmp/${SCRIPT_NAME}_${CLIENT}.pid"
+trap 'rm -f $LOCKFILE' EXIT TERM INT
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
+if ! $BASEDIR/checkalrun.sh $LOCKFILE $$; then exit 1; fi
+
 CONFIG="mon.ini"
 if [ -n "$CLIENT" ]; then
   shift
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
-echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 export NLS_LANG=AMERICAN_AMERICA.CL8MSWIN1251
@@ -22,11 +29,10 @@ export NLS_LANG=AMERICAN_AMERICA.CL8MSWIN1251
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 WRTPI="$BASEDIR/rtpi"
-HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
 LINES=$($BASEDIR/iniget.sh $CONFIG alert lines)
 EXCLUDE=$($BASEDIR/iniget.sh $CONFIG alert exclude)
+[[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
-ME=$(basename $0)
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
@@ -42,10 +48,10 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
        HOST_=$(awk -F: '{print $1}' <<< $EXCL)
        DB_=$(awk -F: '{print $2}' <<< $EXCL)
        SCRIPTS_=$(cut -d':' -f3- <<< $EXCL)
-       if [[ "$HOST_" = "$HOST" || "$HOST_" = % ]] && [[ "$DB_" = "$DB" || "$DB_" = % ]]  && [[ "$SCRIPTS_" == *"$ME"* || "$SCRIPTS_" == *%* ]]; then
+       if [[ "$HOST_" = "$HOST" || "$HOST_" = % ]] && [[ "$DB_" = "$DB" || "$DB_" = % ]]  && [[ "$SCRIPTS_" == *"$SCRIPT_NAME"* || "$SCRIPTS_" == *%* ]]; then
          echo "Find EXCLUDE HOST:   $HOST in   EXCL: $EXCL"
          echo "Find EXCLUDE DB:     $DB   in   EXCL: $EXCL"
-         echo "Find EXCLUDE SCRIPT: $ME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop_db=1; break
+         echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop_db=1; break
        fi
     done
     if [ "$skip_outer_loop_db" -eq 1 ]; then echo "SKIP and continue outher loop db!"; continue; fi
@@ -141,7 +147,7 @@ if [ "$ERRCT" -gt 1 ]; then
  echo "$ERRMESS" | awk 'BEGIN {FS="<BR>"}{for (i=1;NF>=i;i++) {print $i}}'
  echo " " >> $LOGF_HEAD
  echo "$ERRMESS" | awk 'BEGIN {FS="<BR>"}{for (i=1;NF>=i;i++) {print $i}}' >> $LOGF_HEAD
- cat $LOGF_HEAD | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "ALERT_LOG warning:"
+ cat $LOGF_HEAD | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "ALERT_LOG warning:"
 fi
 
 #rm $LOGF $LOGF_HEAD $EXCLFILE $AWKFILE

@@ -2,24 +2,30 @@
 set -f
 
 CLIENT="$1"
-BASEDIR=$(dirname $0)
+HOST="$2"
+FILEPATH=$0
+BASEDIR=${FILEPATH%/*}
+SCRIPT_NAME=${FILEPATH##*/}
+LOCKFILE="/tmp/${SCRIPT_NAME}_${CLIENT}.pid"
+trap 'rm -f $LOCKFILE' EXIT TERM INT
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
+if ! $BASEDIR/checkalrun.sh $LOCKFILE $$; then exit 1; fi
+
 CONFIG="mon.ini"
 if [ -n "$CLIENT" ]; then
   shift
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
-echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
-HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
+[[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 limPER=$($BASEDIR/iniget.sh $CONFIG threshold DISK_USAGE_LIMIT_PER)
 limGB=$($BASEDIR/iniget.sh $CONFIG threshold DISK_USAGE_LIMIT_DB)
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
-ME=$(basename $0)
 
 echo "limPER: "$limPER
 echo "limGB: "$limGB
@@ -31,9 +37,9 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   skip_outer_loop=0
   for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
      SCRIPTS=$(cut -d':' -f3- <<< $EXCL)
-     if [[ $(awk -F: '{print $1}' <<< $EXCL) = "$HOST" ]] && (grep -q "$ME" <<< "$SCRIPTS"); then
+     if [[ $(awk -F: '{print $1}' <<< $EXCL) = "$HOST" ]] && (grep -q "$SCRIPT_NAME" <<< "$SCRIPTS"); then
        echo "Find EXCLUDE HOST: $HOST   in   EXCL: $EXCL"
-       echo "Find EXCLUDE SCRIPT: $ME   in   SCRIPTS: $SCRIPTS" ; skip_outer_loop=1; break
+       echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS: $SCRIPTS" ; skip_outer_loop=1; break
      fi
   done
   if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi
@@ -68,7 +74,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ -s $LOGF ]; then
     if [ "$PCT" -gt "$limPER" -a "$FS_" -lt "$limGB" ]; then
       echo -e "Fired: "$0"\n" > $LOGF_HEAD
-      cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST NULL "DISKSPACE usage warning: (current: ${PCT} %, threshold: ${limPER} % and below ${limGB} Gb)"
+      cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST NULL "DISKSPACE usage warning: (current: ${PCT} %, threshold: ${limPER} % and below ${limGB} Gb)"
       rm $LOGF_HEAD
     fi
     rm $LOGF

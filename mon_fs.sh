@@ -2,22 +2,28 @@
 set -f
 
 CLIENT="$1"
-BASEDIR=$(dirname $0)
+HOST="$2"
+FILEPATH=$0
+BASEDIR=${FILEPATH%/*}
+SCRIPT_NAME=${FILEPATH##*/}
+LOCKFILE="/tmp/${SCRIPT_NAME}_${CLIENT}.pid"
+trap 'rm -f $LOCKFILE' EXIT TERM INT
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
+if ! $BASEDIR/checkalrun.sh $LOCKFILE $$; then exit 1; fi
+
 CONFIG="mon.ini"
 if [ -n "$CLIENT" ]; then
   shift
   CONFIG=${CONFIG}.${CLIENT}
   if [ ! -s "$BASEDIR/$CONFIG" ]; then echo "Exiting... Config not found: "$CONFIG ; exit 128; fi
 fi
-echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
-HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
+[[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
-ME=$(basename $0)
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
@@ -26,9 +32,9 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   skip_outer_loop=0
   for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
      SCRIPTS=$(cut -d':' -f3- <<< $EXCL)
-     if [[ $(awk -F: '{print $1}' <<< $EXCL) = "$HOST" ]] && (grep -q "$ME" <<< "$SCRIPTS"); then
+     if [[ $(awk -F: '{print $1}' <<< $EXCL) = "$HOST" ]] && (grep -q "$SCRIPT_NAME" <<< "$SCRIPTS"); then
        echo "Find EXCLUDE HOST: $HOST   in   EXCL: $EXCL"
-       echo "Find EXCLUDE SCRIPT: $ME   in   SCRIPTS: $SCRIPTS" ; skip_outer_loop=1; break
+       echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS: $SCRIPTS" ; skip_outer_loop=1; break
      fi
   done
   if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi
@@ -54,7 +60,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     diff $LOGF_FS_OLD $LOGF > $LOGF_FS_DIFF
 
     if [ -s $LOGF_FS_DIFF ]; then
-       cat $LOGF_FS_DIFF | $BASEDIR/send_msg.sh $CONFIG $0 $HOST NULL "FS mountpoint has been changed:"
+       cat $LOGF_FS_DIFF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST NULL "FS mountpoint has been changed:"
     fi
     cp $LOGF $LOGF_FS_OLD
     rm $LOGF_FS_DIFF $LOGF
