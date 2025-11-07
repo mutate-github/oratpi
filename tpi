@@ -1,6 +1,6 @@
 #!/bin/bash
 set -f
-TPIVER="31.10.25"
+TPIVER="07.11.25"
 # echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 
 # echo "tpi: "$* 
@@ -6153,16 +6153,13 @@ sess=$2
 [[ -n "$sess" ]] && SESS_="SESSION_ID, SESSION_SERIAL#, " || SESS_=""
 COND_="and sample_time $INTERVAL_"
 
-if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
 if [ -n "$CON_ID" ]; then CON_ID=" con_id, "; fi
 
 if [ "$view_" = "dba_hist_active_sess_history" ]; then
     S1_="*10"
-    if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and instance_number=$AND_INST_ID"; fi
-    inst_id="instance_number"
+    INST_ID="instance_number, "
 else
-    if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and inst_id=$AND_INST_ID"; fi
-    inst_id="inst_id"
+    INST_ID="inst_id, "
 fi
 
 $SP <<EOF >$LOGF
@@ -6170,17 +6167,17 @@ set lines 230  pages 80
 col PGA_MB for 99990.00
 col percent head '%' for 99990.99
 col star for A10 head ''
-PROMPT "Top 40 SQL_ID PGA usage (useful for short time period) from $view_  where $COND_  $AND_INST_ID  $AND_INST_ID"
-SELECT $SESS_  SQL_ID, round(PGA_MB, 1) PGA_MB, percent, rpad('*', percent * 10 / 100, '*') star
+PROMPT "Top 40 SQL_ID PGA usage (useful for short time period) from $view_  where $COND_  $AND_INST_ID $AND_CON_ID"
+SELECT $INST_ID $CON_ID  $SESS_  SQL_ID, round(PGA_MB, 1) PGA_MB, percent, rpad('*', percent * 10 / 100, '*') star
 FROM (
-SELECT $SESS_  SQL_ID, sum(DELTA_PGA_MB) PGA_MB, (ratio_to_report(sum(DELTA_PGA_MB)) OVER ())* 100 percent, RANK() OVER( ORDER BY sum(DELTA_PGA_MB) DESC) RANK
-FROM (SELECT $SESS_  sample_id, SQL_ID, SAMPLE_TIME, IS_SQLID_CURRENT, SQL_CHILD_NUMBER, PGA_ALLOCATED,
+SELECT $INST_ID $CON_ID  $SESS_  SQL_ID, sum(DELTA_PGA_MB) PGA_MB, (ratio_to_report(sum(DELTA_PGA_MB)) OVER ())* 100 percent, RANK() OVER( ORDER BY sum(DELTA_PGA_MB) DESC) RANK
+FROM (SELECT $INST_ID $CON_ID  $SESS_  sample_id, SQL_ID, SAMPLE_TIME, IS_SQLID_CURRENT, SQL_CHILD_NUMBER, PGA_ALLOCATED,
       greatest(PGA_ALLOCATED - first_value(PGA_ALLOCATED) OVER (PARTITION BY SESSION_ID, SESSION_SERIAL# ORDER BY	sample_time ROWS 1 PRECEDING), 0)/ power(1024, 2) "DELTA_PGA_MB"
-      FROM $view_
-      WHERE IS_SQLID_CURRENT = 'Y' $COND_  $AND_INST_ID  $AND_INST_ID
+      FROM $view_ h
+      WHERE IS_SQLID_CURRENT = 'Y' $COND_  $AND_INST_ID  $AND_CON_ID
 	ORDER BY 1, 2, 3, 4
 )
-GROUP BY $SESS_  SQL_ID
+GROUP BY $INST_ID $CON_ID  $SESS_  SQL_ID
 HAVING sum(DELTA_PGA_MB) > 0
 )
 WHERE RANK < 41
@@ -6392,7 +6389,7 @@ col network for 9990.99 heading '13|NET'
 col queueing for 9990.99 heading '14|QUEUE'
 col clust for 9990.99 heading '15|CLUST'
 col other for 9990.99 heading '16|OTHER'
-col instance_number for 999 heading '17|IN'
+col instance_number for 999 heading '18|IN'
 col inst_id for 999 heading '18|IN'
 col con_id for 999 heading '17|CON'
 PROMPT "Data for chart: Average active/waiting sessions from $view_ in sample_time $INTERVAL_"
@@ -6564,7 +6561,7 @@ event)
    $SP <<EOF >$LOGF
    $SET_COL
    PROMPT
-   PROMPT "Top 20 events from DBA_HIST_ACTIVE_SESS_HISTORY where sample_time $INTERVAL_"
+   PROMPT "Top 20 events from DBA_HIST_ACTIVE_SESS_HISTORY where sample_time $INTERVAL_ $AND_INST_ID $AND_CON_ID"
    select * from ( select instance_number, $CON_ID  nvl(EVENT, 'ON CPU') EVENT, round(100*count(*)/ sum(count(1)) over(), 2) "%ACTIVITY" from DBA_HIST_ACTIVE_SESS_HISTORY
    where sample_time $INTERVAL_ and dbid=(select dbid from v\$database) $AND_INST_ID $AND_CON_ID group by instance_number, $CON_ID EVENT order by instance_number, $CON_ID "%ACTIVITY"  desc ) where rownum<21;
 EOF
@@ -6578,7 +6575,7 @@ if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
 
 if [ -n "$P1_"  -a -n "$P2_" -a "$P3_" = "all" ]; then
   $SP <<EOF >$LOGF
-  PROMPT "Session from DBA_HIST_ACTIVE_SESS_HISTORY by filter: sample_time $INTERVAL_  for SID: $P1_  SERIAL: $P2_"
+  PROMPT "Session from DBA_HIST_ACTIVE_SESS_HISTORY by filter: sample_time $INTERVAL_  for SID: $P1_  SERIAL: $P2_ $AND_INST_ID $AND_CON_ID"
   $SET_COL
   select  instance_number, $CON_ID to_char(sample_time,'DD/MM/YY HH24:MI:SS')time,session_id sid,"SESSION_SERIAL#" serial,username,sql_id,nvl(event,'ON CPU') event,/*session_state,*/"CURRENT_OBJ#" OBJ#,"CURRENT_FILE#" FILE#,"CURRENT_BLOCK#" BLOCK#,
   blocking_session_status BLSTATUS,blocking_session BLSID,"BLOCKING_SESSION_SERIAL#" BLSERIAL,/*program,module,action,machine*/ program||' \ '||module||' \ '||action||' \ '||machine PMAM
@@ -6588,7 +6585,7 @@ EOF
 elif [  -n "$P1_"  -a -n "$P2_" -a "$P3_" = "tchcnt" ]; then
   $SP <<EOF >$LOGF
   PROMPT
-  PROMPT "Session from DBA_HIST_ACTIVE_SESS_HISTORY by filter: session_id=$P1_ and session_serial#='$P2_' and sample_time $INTERVAL_ by touch-count objects:"
+  PROMPT "Session from DBA_HIST_ACTIVE_SESS_HISTORY by filter: session_id=$P1_ and session_serial#='$P2_' and sample_time $INTERVAL_ $AND_INST_ID $AND_CON_ID by touch-count objects:"
   $SET_COL
   select o.owner,o.object_name, o.object_type,count(*) tchcnt from DBA_HIST_ACTIVE_SESS_HISTORY h, dba_objects o
   where h.current_obj# = o.object_id and h.session_id='$P1_' and h.session_serial#='$P2_' and sample_time $INTERVAL_ $AND_INST_ID $AND_CON_ID
@@ -6598,7 +6595,7 @@ EOF
 elif [ -n "$P1_" -a -n "$P2_" ]; then
   if [ "$P3_" != "nosqlid" ]; then   S1_="sql_id,sql_plan_hash_value,"; fi
   $SP <<EOF >$LOGF
-  PROMPT "Top 30 Waits from DBA_HIST_ACTIVE_SESS_HISTORY by filter: sample_time $INTERVAL_ for sid = '$P1_' and serial = '$P2_'"
+  PROMPT "Top 30 Waits from DBA_HIST_ACTIVE_SESS_HISTORY by filter: sample_time $INTERVAL_ for sid = '$P1_' and serial = '$P2_' $AND_INST_ID $AND_CON_ID"
   $SET_COL
   select * from (
   select instance_number, $CON_ID session_id sid,"SESSION_SERIAL#" serial,username, $S1_ nvl(event,'ON CPU') event, program||' \ '||module||' \ '||action||' \ '||machine PMAM,
@@ -6626,7 +6623,7 @@ elif [ -n "$P1_" ]; then
 EOF
 else
   $SP <<EOF >$LOGF
-  PROMPT "Top 90 ACTIVE sessions in seconds from DBA_HIST_ACTIVE_SESS_HISTORY by filter: sample_time $INTERVAL_"
+  PROMPT "Top 90 ACTIVE sessions in seconds from DBA_HIST_ACTIVE_SESS_HISTORY by filter: sample_time $INTERVAL_ $AND_INST_ID $AND_CON_ID"
   $SET_COL
   select * from (
   select instance_number, $CON_ID session_id sid,"SESSION_SERIAL#" serial, username,/*sql_id,sql_plan_hash_value,nvl(event,'ON CPU') event,*/ program||' \ '||module||' \ '||action||' \ '||machine PMAM,
@@ -6654,7 +6651,7 @@ where)
 #  PRG_=$(awk '{print $3}' <<< "$*")
 #  COND_="and $FIELD_ like '%$PRG_%'"
   $SP <<EOF >$LOGF
-  PROMPT "Stat top 30 session_state from DBA_HIST_ACTIVE_SESS_HISTORY where sample_time $INTERVAL_  for condition: $COND_"
+  PROMPT "Stat top 30 session_state from DBA_HIST_ACTIVE_SESS_HISTORY where sample_time $INTERVAL_  for condition: $COND_ $AND_INST_ID $AND_CON_ID"
   $SET_COL
   select * from (
   select instance_number, $CON_ID /*session_id sid,"SESSION_SERIAL#" serial,*/ username,
@@ -6682,7 +6679,7 @@ where)
 EOF
 ;;
 insection)
-if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and inst_id=$AND_INST_ID"; fi
+if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and instance_number=$AND_INST_ID"; fi
 if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
 shift
 [[ -n "$@" ]] && COND_=" $@ "
@@ -6712,6 +6709,8 @@ order by activity desc
 EOF
 ;;
 sql)
+  if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and h.instance_number=$AND_INST_ID"; fi
+  if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and h.con_id=$AND_CON_ID"; fi
   P1_=$(awk '{print $2}' <<< "$*")
   case "$P1_" in
   all)
@@ -7105,7 +7104,7 @@ TWR_IOPS - TotoalWritesIOPS     SWR_IOPS - SingleWritesIOPS    LAWR_LAT - Large_
 IN       - Instance_number'
 echo  "$legend_"
 $SP <<EOF >$LOGF
-prompt  dba_hist_iostat_filetype param 'Archive Log' 'Control File' 'Data File' 'Log File'  'Other' 'Temp File' for  $filetype_name
+prompt  dba_hist_iostat_filetype param 'Archive Log' 'Control File' 'Data File' 'Log File'  'Other' 'Temp File' for "$filetype_name" con_id=0 if AWR_PDB_AUTOFLUSH_ENABLED=false
 set lines 230 pages 190 numw 9 tab off
 col begin_time for a17 heading "1|BEGIN_TIME"
 col filetype_name for a17 noprint
@@ -7199,7 +7198,7 @@ LOADW   - CPU Load Windows            LFPWLAT - Log File parallel write (ms) Lat
 LIOPSEC - Logical Reads per second    LFSYLAT - Log File sync (ms) Latency               PHWRIOPS - Physical Write IOPS'
 echo "$legend_"
 $SP <<EOF >$LOGF
-prompt Data from: dba_hist_sys_time_model  dba_hist_osstat dba_hist_system_event dba_hist_sysstat dba_hist_sysmetric_summary
+prompt Data from: dba_hist_sys_time_model  dba_hist_osstat dba_hist_system_event dba_hist_sysstat dba_hist_sysmetric_summary dba_hist_snapshot con_id=0 if AWR_PDB_AUTOFLUSH_ENABLED=false
 set lines 230 pages 190 numw 9 tab off null 0
 col begin_time for a17 heading "1|BEGIN_TIME"
 col AAS for 99999 heading "2|AAS" 
@@ -7537,7 +7536,7 @@ for ((i=1;i<=$#;i++)); do
     INPARVAL=$(awk -F= '{print $2}' <<< $PVAL)
     case "$PVAL" in
       IN=*)   AND_INST_ID="$INPARVAL" ; k=$k+1 ;;
-      CON=*) if [ "$(db_version)" -ge 12 ]; then CON_ID=" con_id, "; AND_CON_ID="$INPARVAL" ; fi ;  k=$k+1  ;;
+      CON=*) if [ "$(db_version)" -ge 12 ]; then CON_ID=" h.con_id, "; AND_CON_ID="$INPARVAL" ; fi ;  k=$k+1  ;;
     esac
   fi
 done
@@ -7778,8 +7777,8 @@ order by activity desc
 EOF
 ;;
 sql)
-  if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and inst_id=$AND_INST_ID"; fi
-  if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
+  if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and h.inst_id=$AND_INST_ID"; fi
+  if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and h.con_id=$AND_CON_ID"; fi
   P1_=$(echo $* | awk '{print $2}')
   case "$P1_" in
   all)
@@ -7883,7 +7882,7 @@ order by activity desc
 EOF
 
 else
-
+if [ -n "$AND_CON_ID" ]; then AND_CON_ID="$AND_CON_ID and h.con_id=a.con_id"; fi
 LEN_=$(expr length $P1_)
 P1__=$(tr -d '[:digit:][:lower:]' <<< "$P1_")
 if [ -z "$P1__" -a $LEN_ -eq 13 ] ; then
