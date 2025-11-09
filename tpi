@@ -3760,11 +3760,18 @@ case "$P1_" in
 logs)
 $SP <<'EOF' >$LOGF
 set lines 230
-set echo off feed off veri off tab off pages 50
+set echo off feed off veri off tab off timi off pages 50
 column member for a80
-select group#, member, type, status from v$logfile order by group#,member;
-column bytes for 99,999,999,999
-select group#, bytes, status, archived, SEQUENCE# from v$log;
+--select inst_id,group#, member, type, status from gv$logfile order by inst_id, group#,member;
+column inst_id for 99999
+column thread# for 99999
+column group# for 99999
+column bytes for 99999999999
+column Mytes for 99999999
+column Gytes for 99999
+--select inst_id, thread#, group#, bytes, status, archived, SEQUENCE# from gv$log;
+prompt Redo information from gv$logfile lf, gv$log l where lf.inst_id=l.inst_id and lf.group#=l.group# 
+select l.inst_id, l.thread#, l.group#, l.SEQUENCE#, l.bytes, l.bytes/1024/1024 Mbytes, l.bytes/1024/1024/1024 Gbytes, l.status, l.archived, lf.member, lf.type, lf.status from gv$logfile lf, gv$log l where lf.inst_id=l.inst_id and lf.group#=l.group# order by l.inst_id, l.thread#, l.group#;
 EOF
 ;;
 *)
