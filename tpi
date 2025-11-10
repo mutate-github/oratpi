@@ -1,6 +1,6 @@
 #!/bin/bash
 set -f
-TPIVER="09.11.25"
+TPIVER="10.11.25"
 # echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 
 # echo "tpi: "$* 
@@ -3763,7 +3763,7 @@ set lines 230
 set echo off feed off veri off tab off timi off pages 50
 column member for a80
 --select inst_id,group#, member, type, status from gv$logfile order by inst_id, group#,member;
-column inst_id for 99999
+--column inst_id for 99999
 column thread# for 99999
 column group# for 99999
 column bytes for 99999999999
@@ -3771,7 +3771,8 @@ column Mytes for 99999999
 column Gytes for 99999
 --select inst_id, thread#, group#, bytes, status, archived, SEQUENCE# from gv$log;
 prompt Redo information from gv$logfile lf, gv$log l where lf.inst_id=l.inst_id and lf.group#=l.group# 
-select l.inst_id, l.thread#, l.group#, l.SEQUENCE#, l.bytes, l.bytes/1024/1024 Mbytes, l.bytes/1024/1024/1024 Gbytes, l.status, l.archived, lf.member, lf.type, lf.status from gv$logfile lf, gv$log l where lf.inst_id=l.inst_id and lf.group#=l.group# order by l.inst_id, l.thread#, l.group#;
+-- select l.inst_id, l.thread#, l.group#, l.SEQUENCE#, l.bytes, l.bytes/1024/1024 Mbytes, l.bytes/1024/1024/1024 Gbytes, l.status, l.archived, lf.member, lf.type, lf.status from gv$logfile lf, gv$log l where lf.inst_id=l.inst_id and lf.group#=l.group# order by l.inst_id, l.thread#, l.group#;
+select unique l.thread#, l.group#, l.SEQUENCE#, l.bytes, l.bytes/1024/1024 Mbytes, l.bytes/1024/1024/1024 Gbytes, l.status, l.archived, lf.member, lf.type, lf.status from gv$logfile lf, gv$log l where lf.inst_id=l.inst_id and lf.group#=l.group# order by l.thread#, l.group#;
 EOF
 ;;
 *)
@@ -4461,7 +4462,7 @@ column file_id for 999
 column file# for 999
 column block_size for 99999
 column tablespace_name format a25
-column file_name format a70
+column file_name format a80
 column name format a70
 column status format a10
 column enabled format a15
