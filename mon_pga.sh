@@ -32,6 +32,9 @@ echo "PGA_USAGE_LIMIT: "$PGA_USAGE_LIMIT
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST="$HOST
+  SSHUSER=$($BASEDIR/iniget.sh $CONFIG $HOST sshuser)
+  SUDO=$($BASEDIR/iniget.sh $CONFIG $HOST sudo)
+
   $BASEDIR/test_ssh.sh $CLIENT $HOST
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
@@ -75,7 +78,7 @@ FROM v\$database d
 LEFT JOIN v\$parameter p ON p.name = 'memory_target'
 WHERE d.database_role = 'PRIMARY';
 END
-" | $SSHCMD $HOST "/bin/bash -s $DB" | tr -d '[[:cntrl:]]' | sed -e 's/^[ \t]*//')
+" | $SSHCMD $SSHUSER $HOST "$SUDO /bin/bash -s $DB" | tr -d '[[:cntrl:]]' | sed -e 's/^[ \t]*//')
 
     echo "VALUE: "$VALUE
 

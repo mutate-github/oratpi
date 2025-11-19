@@ -30,13 +30,17 @@ echo "limPER: "$limPER
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST: "$HOST
+  SSHUSER=$($BASEDIR/iniget.sh $CONFIG $HOST sshuser)
+  SUDO=$($BASEDIR/iniget.sh $CONFIG $HOST sudo)
+
 #-- skip for host
   skip_outer_loop=0
   for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
-     SCRIPTS=$(cut -d':' -f3- <<< $EXCL)
-     if [[ $(awk -F: '{print $1}' <<< $EXCL) = "$HOST" ]] && (grep -q "$SCRIPT_NAME" <<< "$SCRIPTS"); then
+     HOST_=$(awk -F: '{print $1}' <<< $EXCL)
+     SCRIPTS_=$(cut -d':' -f3- <<< $EXCL)
+     if [[ "$HOST_" = "$HOST" || "$HOST_" = %  ]] && [[ "$SCRIPTS_" == *"$SCRIPT_NAME"* || "$SCRIPTS_" == *%* ]]; then
        echo "Find EXCLUDE HOST: $HOST   in   EXCL: $EXCL"
-       echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS: $SCRIPTS" ; skip_outer_loop=1; break
+       echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop=1; break
      fi
   done
   if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi
@@ -48,14 +52,23 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   OS=$($SSHCMD $HOST "uname")
   case "$OS" in
-   Linux)
-          $SSHCMD "$HOST" "cat /proc/loadavg | awk '{printf (\"%3.0f\", \$2)}'" > $LOGF
+   Linux) $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
+	  cat /proc/loadavg | awk '{printf (\"%3.0f\", \$2)}'
+	EOF
+	" > $LOGF
           PCT=$(head -1 $LOGF)
           ;;
-   AIX)   $SSHCMD "$HOST" "lparstat 6 1 | tail -1 | awk '{printf (\"%3.0f\", \$7)}'" > $LOGF
+   AIX)   $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
+	  # lparstat 6 1 | tail -1 | awk '{printf (\"%3.0f\", \$7)}'
+	  uptime | awk '{printf (\"%3.0f\", \$(NF-1))}'
+	EOF
+	" > $LOGF
           PCT=$(head -1 $LOGF)
           ;;
-   SunOS) $SSHCMD "$HOST" "uptime | awk '{printf (\"%3.0f\", \$(NF-1))}'" > $LOGF
+   SunOS) $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
+	  uptime | awk '{printf (\"%3.0f\", \$(NF-1))}'
+	EOF
+	" > $LOGF
           PCT=$(head -1 $LOGF)
           ;;
   esac

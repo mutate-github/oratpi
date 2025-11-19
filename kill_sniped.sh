@@ -1,7 +1,14 @@
 #!/bin/bash
 
 CLIENT="$1"
-BASEDIR=$(dirname $0)
+HOST="$2"
+FILEPATH=$0
+BASEDIR=${FILEPATH%/*}
+SCRIPT_NAME=${FILEPATH##*/}
+LOCKFILE="/tmp/${SCRIPT_NAME}_${CLIENT}.pid"
+trap 'rm -f $LOCKFILE' EXIT TERM INT
+echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
+
 CONFIG="mon.ini"
 if [ -n "$CLIENT" ]; then
   shift
@@ -13,13 +20,17 @@ echo "Using config: ${CONFIG}"
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 WRTPI="$BASEDIR/rtpi"
-HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host)
+[[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SET_ENV_F="$BASEDIR/set_env"
 SET_ENV=$(<$SET_ENV_F)
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
+  echo "++++++++++"
   echo "HOST="$HOST
+  SSHUSER=$($BASEDIR/iniget.sh $CONFIG $HOST sshuser)
+  SUDO=$($BASEDIR/iniget.sh $CONFIG $HOST sudo)
+
 #  $BASEDIR/test_ssh.sh $CLIENT $HOST
 #  if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
@@ -53,7 +64,7 @@ for x in \$(awk '/^[0123456789]/{print \$1}' \$tmpfile)
 #  echo  \$x
  done
 rm \$tmpfile
-" | $SSHCMD $HOST "/bin/bash -s $DB"
+" | $SSHCMD $SSHUSER $HOST "$SUDO /bin/bash -s $DB"
 
   done # DB
 done # HOST

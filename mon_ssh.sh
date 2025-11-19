@@ -28,13 +28,14 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST="$HOST
 
-  #-- skip for host
+#-- skip for host
   skip_outer_loop=0
   for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
-     SCRIPTS=$(cut -d':' -f3- <<< $EXCL)
-     if [[ $(awk -F: '{print $1}' <<< $EXCL) = "$HOST" ]] && (grep -q "$SCRIPT_NAME" <<< "$SCRIPTS"); then
+     HOST_=$(awk -F: '{print $1}' <<< $EXCL)
+     SCRIPTS_=$(cut -d':' -f3- <<< $EXCL)
+     if [[ "$HOST_" = "$HOST" || "$HOST_" = %  ]] && [[ "$SCRIPTS_" == *"$SCRIPT_NAME"* || "$SCRIPTS_" == *%* ]]; then
        echo "Find EXCLUDE HOST: $HOST   in   EXCL: $EXCL"
-       echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS: $SCRIPTS" ; skip_outer_loop=1; break
+       echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop=1; break
      fi
   done
   if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi

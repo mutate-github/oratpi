@@ -124,11 +124,13 @@ EOFF
 chmod u+x $SCRIPT_NAME_PURGE
 
 for HOST in $(echo "$HOSTS" | xargs -n1 echo); do
+  SSHUSER=$($BASEDIR/iniget.sh $CONFIG $HOST sshuser)
+  SUDO=$($BASEDIR/iniget.sh $CONFIG $HOST sudo)
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
   for DB in  $(echo "$DBS" | xargs -n1 echo); do
     echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
     echo "HOST=$HOST  DB=$DB  "$(date)
-    cat $SCRIPT_NAME_PURGE | $SSHCMD $HOST "/bin/bash -s $DB"
+    cat $SCRIPT_NAME_PURGE | $SSHCMD $SSHUSER $HOST "$SUDO /bin/bash -s $DB"
   done # DB
 done # HOST
 

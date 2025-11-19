@@ -31,6 +31,8 @@ SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST="$HOST
+  SSHUSER=$($BASEDIR/iniget.sh $CONFIG $HOST sshuser)
+  SUDO=$($BASEDIR/iniget.sh $CONFIG $HOST sudo)
   $BASEDIR/test_ssh.sh $CLIENT $HOST
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
@@ -60,7 +62,7 @@ sqlplus -s '/ as sysdba' <<'END'
 set pagesize 0 feedback off verify off heading off echo off timing off
 select trunc((select count(1) from v\$datafile)/value*100) from v\$parameter where NAME='db_files';
 END
-" | $SSHCMD $HOST "/bin/bash -s $DB" | tr -d '[[:cntrl:]]' | sed -e 's/^[ \t]*//')
+" | $SSHCMD $SSHUSER $HOST "$SUDO /bin/bash -s $DB" | tr -d '[[:cntrl:]]' | sed -e 's/^[ \t]*//')
 
     echo "VALUE: "$VALUE
 

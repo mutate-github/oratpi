@@ -33,13 +33,17 @@ echo "limGB: "$limGB
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST: "$HOST
+  SSHUSER=$($BASEDIR/iniget.sh $CONFIG $HOST sshuser)
+  SUDO=$($BASEDIR/iniget.sh $CONFIG $HOST sudo)
+
 #-- skip for host
   skip_outer_loop=0
   for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
-     SCRIPTS=$(cut -d':' -f3- <<< $EXCL)
-     if [[ $(awk -F: '{print $1}' <<< $EXCL) = "$HOST" ]] && (grep -q "$SCRIPT_NAME" <<< "$SCRIPTS"); then
+     HOST_=$(awk -F: '{print $1}' <<< $EXCL)
+     SCRIPTS_=$(cut -d':' -f3- <<< $EXCL)
+     if [[ "$HOST_" = "$HOST" || "$HOST_" = %  ]] && [[ "$SCRIPTS_" == *"$SCRIPT_NAME"* || "$SCRIPTS_" == *%* ]]; then
        echo "Find EXCLUDE HOST: $HOST   in   EXCL: $EXCL"
-       echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS: $SCRIPTS" ; skip_outer_loop=1; break
+       echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop=1; break
      fi
   done
   if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi
@@ -51,21 +55,41 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   OS=$($SSHCMD $HOST "uname")
   case "$OS" in
-   Linux)
-#          $SSHCMD "$HOST" "ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1; echo ""; df -kP -x squashfs" > $LOGF
-          $SSHCMD "$HOST" "[[ -s /sbin/ifconfig ]]; if [ "\$?" -eq 0 ]; then /sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1; else ip a | awk '/inet .*brd/{print \$2}' | grep -v 127.0.0.1 ; fi; echo ""; df -kP -x squashfs" > $LOGF
+   Linux) # $SSHCMD $SSHUSER $HOST "$SUDO ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1; echo ""; df -kP -x squashfs" > $LOGF
+          $SSHCMD $SSHUSER $HOST "$SUDO <<-'EOF'
+	  [[ -s /sbin/ifconfig ]]
+	  if [ "\$?" -eq 0 ]; then 
+	    /sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1; else ip a | awk '/inet .*brd/{print \$2}' | grep -v 127.0.0.1
+	  fi
+	  echo ""
+	  df -kP -x squashfs
+	EOF
+        " > $LOGF
           PCT_=$(cat $LOGF | grep -v "/mnt" | awk '/\/.*/{print $5" "int($4/1024/1024)}' | sed -e 's/%//' | sort -rn | head -1)
           PCT=$(echo "$PCT_" | cut -d " " -f 1)
           FS_=$(echo $PCT_ | cut -d " " -f 2)
           ;;
-   AIX)   $SSHCMD "$HOST" "/usr/sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1; echo ""; df -k" > $LOGF
+   AIX)   $SSHCMD $SSHUSER $HOST "$SUDO <<-'EOF'
+	  /usr/sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1
+	  echo ""
+	  df -k
+	EOF
+        " > $LOGF
 #          cat $LOGF
           PCT_=$(cat $LOGF | egrep -v "-" | awk '/\/.*/{print $4" "int($3/1024/1024)}' | sed -e 's/%//' | sort -rn | head -1)
           PCT=$(echo "$PCT_" | cut -d " " -f 1)
           FS_=$(echo $PCT_ | cut -d " " -f 2)
           ;;
    SunOS)
-          $SSHCMD "$HOST" "[[ -s /usr/sbin/ifconfig ]]; if [ "\$?" -eq 0 ]; then /usr/sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1 | grep -v 0.0.0.0; fi; echo ""; df -k" > $LOGF
+          $SSHCMD $SSHUSER $HOST "$SUDO <<-'EOF'
+	  [[ -s /usr/sbin/ifconfig ]]
+	  if [ "\$?" -eq 0 ]; then 
+            /usr/sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1 | grep -v 0.0.0.0 
+	  fi
+	  echo ""
+	  df -k
+	EOF
+        " > $LOGF
           PCT_=$(cat $LOGF | grep -v "/mnt" | awk '/\/.*/{print $5" "int($4/1024/1024)}' | sed -e 's/%//' | sort -rn | head -1)
           PCT=$(echo "$PCT_" | cut -d " " -f 1)
           FS_=$(echo $PCT_ | cut -d " " -f 2)
