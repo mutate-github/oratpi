@@ -67,9 +67,9 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
           ;;
    SunOS) # virtual limit  $SSHCMD $SSHUSER $HOST "$SUDO used=\$(/usr/sbin/swap -s | awk '{print \$9}' | tr -d 'k'); avail=\$(/usr/sbin/swap -s | awk '{print \$11}' | tr -d 'k'); total=\$((used + avail)); percent=\$(( used * 100 / total )); echo -n \$percent" > $LOGF
           $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
-	  /usr/sbin/swap -l | awk 'NR > 1 { total += \$4; free += \$5 } END { if (total>0) { percent = (total-free) * 100 / total ; printf \"%.0f\", percent } }'
+          /usr/sbin/swap -l | awk 'NR > 1 { total += \$4; free += \$5 } END { if (total>0) { percent = (total-free) * 100 / total ; printf \"%.0f\", percent}}'
 	EOF
-        " > $LOGF
+        " > $LOGF
           PCT=$(head -1 $LOGF)
           ;;
   esac
