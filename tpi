@@ -1,6 +1,6 @@
 #!/bin/bash
 set -f
-TPIVER="10.11.25"
+TPIVER="18.11.25"
 # echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 
 # echo "tpi: "$* 
@@ -22,14 +22,12 @@ fi
 
 init_msg()
 {
-  a__="[in=INST_ID] [con=[CON_ID]] \"\" - ACTIVE | a - Allsess | in - INACTIVE | k - KILLED | [access OBJECT] | P.SPID\S.SID\S.PROCESS [bind] [PEEKED_BINDS OUTLINE all ALLSTATS ADVANCED last adaptive PREDICATE partition] | p [param_name] ] - sess param info, p - from V\$SES_OPTIMIZER_ENV by [param_name]"
-  p__="p [FALSE] [PAR1 PAR2 ..] | ph [FALSE] [PARAMETER] | services | dir | resource_limit | resumable - instance parameters or hidden parameters, [FALSE] - only changed parameters, v\$services, dba_directories" 
+  a__="[in=INST_ID] [con=CON_ID] \"\" - ACTIVE | a - Allsess | in - INACTIVE | k - KILLED | [access OBJECT] | P.SPID\S.SID\S.PROCESS [bind] [PEEKED_BINDS OUTLINE all ALLSTATS ADVANCED last adaptive PREDICATE partition] | p [param_name] ] - sess param info, p - from V\$SES_OPTIMIZER_ENV by [param_name]"
+  p__="p [FALSE] [PAR1 PAR2 ..] | ph [FALSE] [PARAMETER] | license | services | dir | resource_limit | resumable - instance parameters or hidden parameters, [FALSE] - only changed parameters, gv\license - HWM sessions, gv\$services, dba_directories, gv\$resource_limit" 
   db__="db [ nls|option|properties|fusage|acl ] - gv\$instance, v\$database, dba_registry, dba_registry_sqlpatch, nls_database_paramters, v\$option, database_properties information" 
-  wholink__="wholink who is querying via dblink. The GTXID will match for both databases"
   analyze__="analyze {gather|delete|set|lock}  {table TABLE_NAME OWNER [PERCENT] [NUMROWS NUMLBLKS]} | lock\unlock {partition TABLE_NAME OWNER PART_NAME} | {index INDEX_NAME OWNER [PERCENT] [NUMROWS NUMLBLKS NUMDIST]} | {schema SCHEMA} | database | {system [INTERVAL_MIN|stop|show]} | dictionary | fixed - operations with stats "
   audit__="audit [login | logons [dd/mm/yy-HH:MI-HH:MI(hours)] | maxcon [dd/mm/yy-HH:MI-HH:MI(hours)] [CNT] | 1017 [dd/mm/yy-HH:MI-HH:MI(hours)] [USR] | obj [dd/mm/yy-HH:MI-HH:MI(hours)] [OBJ] ] - DDL users audit, login - check all users for simple password, logons - all logon, maxcon - max of db connections above CNT (def 100) for a period (def 1H), 1017 - failed login, obj - obj audit"
-  health__="health [cr | hot] - Database health parameters (HWM sessions, Hit Ratio / Get Misses cache, System Events Waits, Consistent Read buffers in SGA | Hot buffers)"
-  oratop__="oratop [ h [in=INST_ID] [con=[CON_ID]] | dhsh [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def3d] ] - Database and Instance parameters, h - history V\$SYSMETRIC_HISTORY V\$ACTIVE_SESSION_HISTORY, dhsh - dba_hist_sysmetric_history dba_hist_snapshot"
+  health__="health [in=INST_ID] [con=CON_ID] [cr | hot] - Database health parameters (Hit Ratio / Get Misses cache, System Events Waits, Consistent Read buffers in SGA | Hot buffers)"
   sga__="sga - SGA information" 
   pga__="pga [usage | pga_detail_get P.pid | pga_detail_cancel P.pid | pga_detail_show P.pid ] - PGA sessions information, pga_detail_show - V\$PROCESS_MEMORY_DETAIL"
   size__="size [days | tbs [free [SORT_COL_NAME]] | temp | sysaux | df [io|usage|lastseg[TBS]] | maxseg TBS | maxext | fra | rbin [all] | grows (days)] - Size of DB+archl (7 def), tablespaces, datafiles (HWM in DF+script), maxseg in all DB\TBS, FRA info + db_recovery_file_dest usage; recyclebin; ( exec 'alter system set \"_enable_space_preallocation\"=0' )"
@@ -40,9 +38,9 @@ init_msg()
   sysstat__="sysstat [ % | STATNAME ] - sysstat information, by startup, by day, by hours, by min, by sec" 
   segstat__="segstat [SEGMENT_NAME] [OWNER] - top 20 segments statistics information from V\$SEGMENT_STATISTICS or SEGMENT_NAME statistics" 
   o__="o OBJECT_NAME | OBJECT_ID | invalid [OWNER] | ddl [last N hours] | depend REFERENCED_OBJ_NAME | depend last_analyzed HH OBJ_NAME - Show what REFERENCED_OBJ_NAME was last analyzed in depended OBJ_NAME   - dba_objects information" 
-  s__="s SEGMENT_NAME [OWNER] - dba_segments information" 
+  s__="s SEGMENT_NAME [OWNER] | nonsystem - dba_segments information, nonsystem - NON-SYSTEM objects detected in SYSTEM tablespace" 
   e__="e SEGMENT_NAME [OWNER] - dba_extents, dba_tablespaces, dba_data_files - Extents in datafiles information" 
-  t__="t [part] TABLE_NAME [OWNER] | last_analyzed HH [OWNER] | chained [PERCENT] - dba_tables, dba_part_tables, dba_tab_partitions, dba_tab_subpartitions information" 
+  t__="t [part] TABLE_NAME [OWNER] | last_analyzed HH [OWNER] | chained [PERCENT] | modifications [TABLE_NAME [OWNER]] - dba_tables, dba_part_tables, dba_tab_partitions, dba_tab_subpartitions, dba_tab_modifications information" 
   i__="i [part] INDEX_NAME [OWNER] | candidate [TABLE_NAME|%] [TABLE_OWNER] [TBS] | last_analyzed HH [OWNER] | rebuild TABLE_NAME OWNER [ONLINE [PARALLEL N]] - dba_indexes, dba_part_indexes, dba_ind_partitions, dba_ind_subpartitions information, candidate to rebulld" 
   l__="l [LOB_NAME] | [unused OWNER LOBSEGMENT] - dba_lobs information or show unused segment information   -- sum(dbms_lob.getlength(CLOB_COL)/1024/1024) " 
   c__="c [ CONSTRAINT_NAME [OWNER] | T TABLE_NAME OWNER | PK PRIMARY_KEY OWNER | FK (TABLE_NAME [OWNER] | %) ]  - dba_constraints, dba_cons_columns information, PK - Who refs to the PK, FK - Tables with non-indexed foreign keys" 
@@ -50,7 +48,7 @@ init_msg()
   r__="r [ {role|granted_role} ROLE  ] - role_role_privs information"
   trg__="trg [ \"\" | [TRIGGER_NAME] [TRIGGER_OWNER] | t [TABLE_NAME] [TABLE_OWNER]  ]  - dba_triggers information, \"\" - LOGON or STARTUP triggers"
   profile__="profile [PROFILE] - profiles information"
-  links__="links [LINK_NAME] - links information"
+  links__="links [LINK_NAME | wholink] - links information, wholink - who is querying via dblink. The GTXID will match for both databases"
   latch__="latch - latch information"
   lock__="lock [chain | lib | obj OBJECT_NAME | distrib [commit TRX | rollback TRX | purge TRX (for commited,collecting,prepared) | hardpurge TRX | hardpurge-ORA-02075-prepared TRX ] ] - blocking locks information, lib - library lock information"
   bind__="bind [SQL] - sql not using bind variable information"
@@ -67,8 +65,9 @@ init_msg()
   report__="report [ash {text|html} -60] -for last hour, [awr {text|html} DD/MM/YYYY HH24_begin HH24_end], [awrdd {text|html} DD1/MM/YYYY HH24_begin HH24_end DD2/MM/YYYY HH24_begin HH24_end], [awrsql {text|html} DD/MM/YYYY HH24_begin HH24_end sql_id], [addm text DD/MM/YYYY HH24_begin HH24_end] - oracle reports"
   corrupt__="corrupt [{rowid|dba} ID] | [fb (FILE) (BLOCK)] - Find object by ROWID, Find object by DBA, Find DB Object in dba_extents by file/block, v\$database_block_corruption v\$nonlogged_block information"
   sql__="sql [ [top] | [SQL_ID | SQLTEXT] | [plan SQL_ID] | [expand SQL_ID] | [sqlarea_vercnt] | [child_reason SQL_ID] | sql_bind_metadata SQL_ID | sql_shared_cursor SQL_ID | [sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] ] - Find out sql_id by SQLTEXT\SQL_ID from V\$SQL, plan from VSQL_PLAN by sql_id, sqlstat from V\$SQLSTAT by sql_id, GV$\SQLAREA"
-  ash__="ash [in=INST_ID] [con=[CON_ID]]  [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [pga [sess]|event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV\$ACTIVE_SESSION_HISTORY  escape \' "
-  dhash__="dhash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [pga [sess]|event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|pio|lio|cpu|exe|ela|fch|sor|iow|row] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | growseg [TBS] [SEGMENT] | segstat [SEGMENT] [OWNER] [SORT_COL] | temp [sizeMb] | (umc)chart | iostat [df|redo|ctl|temp|arch|other] ] | awrinfo - Top SQL, Events, Sessions DBA_HIST_ACTIVE_SESS_HISTORY esape \'"
+  ash__="ash [in=INST_ID] [con=CON_ID]  [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [pga [sess]|event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV\$ACTIVE_SESSION_HISTORY  escape \' "
+  dhash__="dhash [in=INST_ID] [con=CON_ID] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [pga [sess]|event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|pio|lio|cpu|exe|ela|fch|sor|iow|row] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | growseg [TBS] [SEGMENT] | segstat [SEGMENT] [OWNER] [SORT_COL] | temp [sizeMb] | (umc)chart | iostat [df|redo|ctl|temp|arch|other] ] | awrinfo - Top SQL, Events, Sessions DBA_HIST_ACTIVE_SESS_HISTORY esape \'"
+  oratop__="oratop [ h [in=INST_ID] [con=CON_ID] | dhsh [in=INST_ID] [con=CON_ID] [dd/mm/yy-HH:MI-HH:MI(hours) - def3d] ] - Database and Instance parameters, h - history V\$SYSMETRIC_HISTORY V\$ACTIVE_SESSION_HISTORY, dhsh - dba_hist_sysmetric_history dba_hist_snapshot"
   spm__="spm [days def7 - baselines] [find %|SQL_HANDLE SQL_PLAN_NAME] [ blplan %|SQL_HANDLE (PLAN_NAME) | blexec [count] | bllpfcc SQL_ID PLAN_HASH_VALUE [SQL_HANDLE] | bllpfawr SQL_ID PLAN_HASH_VALUE MIN_SNAP_ID MAX_SNAP_ID | blchattr SQL_HANDLE PLAN_NAME ATTR VALUE | blchplan NEW_SQL_ID NEW_PHV OLD_SQLSET_NAME | blevolve SQL_HANDLE PLAN_NAME | sqlset_list SQLSET_NAME OWNER | sqlset_plan SQLSET_NAME SQL_ID [PHV] | sqlset_drop SQLSET_NAME | bldrop SQL_HANDLE (PLAN_NAME) | sqltune [SQL_ID | awr SQL_ID begin_snap end_snap]  | sqltune_report TASK_NAME | sqltune_accept TASK_NAME | sqltune_create_plan_bl TASK_NAME OWNER PLAN_HASH_VALUE | sqltune_list [TASK_NAME] [cnt] | sqltune_drop TASK_NAME | sql_profiles | import_sql_profile SQL_ID_SRC PHV_SRC SQL_ID_TARGET | sql_profile_chattr TASK_NAME ATTR VALUE  | sql_profile_drop NAME | hints profile|baseline|patch NAME | sqlpatch_list | sqlpatch_create SQL_ID \'HINTS\' | sqlpatch_alter PATCHNAME enable|disable | sqlpatch_drop PATCHNAME | report_sql_monitor SQL_ID ]"
 }
 
@@ -77,8 +76,8 @@ init_msg
 if [ -z "$sid" ]; then
   env | grep ORA
   ps -ef | grep [p]mon
-  echo "Usage: $0 <DBSID/PDB> [SPID\SID\OS_client_PID] [a|in|k] [p|ph [FALSE] <param>] [services] [dir] | lock | db | analyze | audit | health | oratop | sga | pga | size | arch | redo | undo | sesstat | segstat | o . | s . | e . | t . | i . | l . | c . | u . | r. | trg . | profile | links | latch | bind | pipe | longops | scheduler | job | rman | get_ddl | trace | kill | exec | alert | report ash/awr | corrupt | sql | ash | dhash | spm"
-  echo -e $a__"\n"$p__"\n"$db__"\n"$wholink__"\n"$analyze__"\n"$audit__"\n"$health__"\n"$oratop__"\n"$sga__"\n"$pga__"\n"$size__"\n"$arch__"\n"$redo__"\n"$undo__"\n"$sesstat__"\n"$sysstat__"\n"$segstat__"\n"$o__"\n"$s__"\n"$e__"\n"$t__"\n"$i__"\n"$l__"\n"$c__"\n"$u__"\n"$r__"\n"$trg__"\n"$profile__"\n"$links__"\n"$latch__"\n"$lock__"\n"$bind__"\n"$pipe__"\n"$longops__"\n"$scheduler__"\n"$job__"\n"$rman__"\n"$get_ddl__"\n"$trace__"\n"$kill__"\n"$exec__"\n"$alert__"\n"$report__"\n"$corrupt__"\n"$sql__"\n"$ash__"\n"$dhash__"\n"$spm__"\n"
+  echo "Usage: $0 <DBSID/PDB> [SPID\SID\OS_client_PID] [a|in|k] [p|ph [FALSE] <param>] [license] [services] [dir] [resource_limit] [resumable] | db | analyze | audit | health | sga | pga | size | arch | redo | undo | sesstat | sysstat | segstat | o . | s . | e . | t . | i . | l . | c . | u . | r. | trg . | profile | links | latch | lock | bind | pipe | longops | scheduler | job | rman | get_ddl | trace | kill | exec | alert | report ash/awr | corrupt | sql | ash | dhash | oratop | spm"
+  echo -e $a__"\n"$p__"\n"$db__"\n"$analyze__"\n"$audit__"\n"$health__"\n"$sga__"\n"$pga__"\n"$size__"\n"$arch__"\n"$redo__"\n"$undo__"\n"$sesstat__"\n"$sysstat__"\n"$segstat__"\n"$o__"\n"$s__"\n"$e__"\n"$t__"\n"$i__"\n"$l__"\n"$c__"\n"$u__"\n"$r__"\n"$trg__"\n"$profile__"\n"$links__"\n"$latch__"\n"$lock__"\n"$bind__"\n"$pipe__"\n"$longops__"\n"$scheduler__"\n"$job__"\n"$rman__"\n"$get_ddl__"\n"$trace__"\n"$kill__"\n"$exec__"\n"$alert__"\n"$report__"\n"$corrupt__"\n"$sql__"\n"$ash__"\n"$dhash__"\n"$oratop__"\n"$spm__"\n"
   exit
   echo "NOT EXIT"
 fi
@@ -287,7 +286,7 @@ alter session set nls_date_format='dd/mm/yy hh24:mi:ss';
 --alter session set optimizer_dynamic_sampling = 0;
 --alter session set "_optimizer_ignore_hints"=true;
 exec dbms_application_info.set_module('tpi script','oracle');
-set timing on
+set timing off
 CREATELOGINSQL
 fi
 
@@ -954,127 +953,136 @@ ttitle off
 EOF
 ;;
 *)
+if [ "$(db_version)" -ge 12 ]; then
+  CON_ID="con_id, " ; CON_ID_=" , con_id"  ; CONPREF="a."
+else
+  CON_ID=""
+fi
+k=0
+for ((i=1;i<=$#;i++)); do
+  PVAL=$(eval echo $(echo \${$i}))
+  if [[ "$PVAL" =~ "=" ]]; then
+    INPARVAL=$(awk -F= '{print $2}' <<< $PVAL)
+    case "$PVAL" in
+      IN=*)   AND_INST_ID=" and inst_id=$INPARVAL" ; k=$k+1 ;;
+      CON=*)  if [ "$(db_version)" -ge 12 ]; then AND_CON_ID=" and con_id=$INPARVAL"; CONCOND=" and a.con_id=b.con_id"; fi; k=$k+1 ;;
+    esac
+  fi
+done
+
+for ((j=1;j<=$k;j++)); do
+ shift
+done
+
 case "$(db_version)" in
-8|9)  SQL_TEXT1_=""  ;;
-*)    SQL_TEXT1_=",cpu_count_current"  ;;
+8|9)  SQL_TEXT1_="" ; SQL_TEXT2_=""  ;;
+*)    SQL_TEXT1_=",cpu_count_current" ; SQL_TEXT2_=", TOTAL_WAITS_FG, TOTAL_TIMEOUTS_FG, TIME_WAITED_FG, AVERAGE_WAIT_FG, TIME_WAITED_MICRO_FG, WAIT_CLASS" ;;
 esac
 
 $SP <<EOF >$LOGF
-set lines 250 pages 100 heading on feedback off termout off heading on termout on timing off
-
-prompt "dba_segments: NON-SYSTEM objects detected in SYSTEM tablespace"
-col owner format a30;
-SELECT owner, count(*), tablespace_name
-FROM dba_segments
-WHERE tablespace_name = 'SYSTEM' AND owner NOT IN ('SYS','SYSTEM','CSMIG','OUTLN','WMSYS')
-Group by owner, tablespace_name order by count(*) desc;
+set lines 250 pages 200 heading on feedback off termout off heading on termout on timing off
+col INST_ID for  9999
+col CON_ID for  9999
 
 prompt
-prompt "v\$license information about session HWM:"
-select sessions_current,sessions_highwater $SQL_TEXT1_ from v\$license;
-prompt
-prompt "V\$SYSSTAT V\$ROWCACHE V\$BUFFER_POOL_STATISTICS V\$SGASTAT V\$WAITSTAT Cache usage:"
+prompt "GV\$SYSSTAT GV\$ROWCACHE GV\$BUFFER_POOL_STATISTICS GV\$SGASTAT GV\$WAITSTAT Cache usage:"
 col name for a70
 col Remarks for a80
-select 'Data Dictionary cache' Name, round((SUM(GETS - GETMISSES - USAGE - FIXED)) / SUM(GETS) * 100,4) Ratio, 'Target ~ 99%' Remarks
-    from V\$ROWCACHE
+select INST_ID, $CON_ID 'Data Dictionary cache' Name, round((SUM(GETS - GETMISSES - USAGE - FIXED)) / SUM(GETS) * 100,4) Ratio, 'Target ~ 99%' Remarks
+    from GV\$ROWCACHE group by $CON_ID INST_ID
 union all
-select 'Library cache' Name, round((SUM(PINS - RELOADS)) / SUM(PINS) * 100,4) Ratio, 'Target ~ 99%' Remarks
-    from V\$LIBRARYCACHE
+select INST_ID, $CON_ID 'Library cache' Name, round((SUM(PINS - RELOADS)) / SUM(PINS) * 100,4) Ratio, 'Target ~ 99%' Remarks
+    from GV\$LIBRARYCACHE group by $CON_ID INST_ID
 union all
-select 'Index usage ratio' Name, round(sum(decode(name,'table fetch by rowid',value,0)) / sum(decode(name,'table fetch by rowid',value,'table scans (short tables)',value,'table scans (long tables)',value,0)) * 100,4) Ratio, 'Target ~ 99%' Remarks
-    from V\$SYSSTAT
+select INST_ID, $CON_ID 'Index usage ratio' Name, round(sum(decode(name,'table fetch by rowid',value,0)) / sum(decode(name,'table fetch by rowid',value,'table scans (short tables)',value,'table scans (long tables)',value,0)) * 100,4) Ratio, 'Target ~ 99%' Remarks
+    from GV\$SYSSTAT group by $CON_ID INST_ID
 union all
-select 'Memory usage in Sorts ratio' Name, round(sum(decode(name,'sorts (memory)',value,0)) / sum(decode(name,'sorts (memory)',value,'sorts (disk)',value,0)) * 100,4) Ratio, 'Ratio sorts in memory to total sorts' Remarks
-    from V\$SYSSTAT
+select INST_ID, $CON_ID 'Memory usage in Sorts ratio' Name, round(sum(decode(name,'sorts (memory)',value,0)) / sum(decode(name,'sorts (memory)',value,'sorts (disk)',value,0)) * 100,4) Ratio, 'Ratio sorts in memory to total sorts' Remarks
+    from GV\$SYSSTAT group by $CON_ID INST_ID
 union all
-select 'Buffer cache hit ratio' Name, round((1 - sum(decode(name,'physical reads',value,0)) / sum(decode(name,'db block gets',value,'consistent gets',value,0))) * 100,4) Ratio, 'Target ~ 99%' Remarks
-    from V\$SYSSTAT
+select INST_ID, $CON_ID 'Buffer cache hit ratio' Name, round((1 - sum(decode(name,'physical reads',value,0)) / sum(decode(name,'db block gets',value,'consistent gets',value,0))) * 100,4) Ratio, 'Target ~ 99%' Remarks
+    from GV\$SYSSTAT group by $CON_ID INST_ID
 union all
-select 'Buffer pool: ' || Name || ' block_size: '|| block_size || ' hit ratio' Name, round((1 - physical_reads / decode(db_block_gets+consistent_gets,0,'',db_block_gets+consistent_gets) ) * 100,4) Ratio, 'Target ~ 99%' Remarks
-    from V\$BUFFER_POOL_STATISTICS
+select INST_ID, $CON_ID 'Buffer pool: ' || Name || ' block_size: '|| block_size || ' hit ratio' Name, round((1 - physical_reads / decode(db_block_gets+consistent_gets,0,'',db_block_gets+consistent_gets) ) * 100,4) Ratio, 'Target ~ 99%' Remarks
+    from GV\$BUFFER_POOL_STATISTICS 
 union all
-select 'Average buffers scanned' Name, round(1 + sum(decode(name,'free buffer inspected',value,0)) / sum(decode(name,'free buffer requested',value,0)),4), 'Target ~ 1..2, if above -- too low buffers' Remarks
-    from V\$SYSSTAT
+select INST_ID, $CON_ID 'Average buffers scanned' Name, round(1 + sum(decode(name,'free buffer inspected',value,0)) / sum(decode(name,'free buffer requested',value,0)),4), 'Target ~ 1..2, if above -- too low buffers' Remarks
+    from GV\$SYSSTAT group by $CON_ID INST_ID
 union all
-select 'Average dirty buffers' Name, round(sum(decode(name,'dirty buffers inspected',value,0)) / sum(decode(name,'free buffer inspected',value,0)),4), 'Target ~ ??, if too much durty -- too low buffers' Remarks
-    from V\$SYSSTAT
+select INST_ID, $CON_ID 'Average dirty buffers' Name, round(sum(decode(name,'dirty buffers inspected',value,0)) / sum(decode(name,'free buffer inspected',value,0)),4), 'Target ~ ??, if too much durty -- too low buffers' Remarks
+    from GV\$SYSSTAT group by $CON_ID INST_ID
 union all
-select 'consistent reads - undo records applied / consistent read rollbacks' Name, round((select value from V\$SYSSTAT where name='transaction tables consistent reads - undo records applied') /
-  decode((select value from V\$SYSSTAT where name='transaction tables consistent read rollbacks'),0,1,(select value from V\$SYSSTAT where name='transaction tables consistent read rollbacks')),4) ratio, 'Less is better' Remarks from dual
+SELECT a.inst_id, ${CONPREF}${CON_ID}
+    'consistent reads - undo records applied / consistent read rollbacks' AS Name,
+    ROUND( NVL(a.value, 0) / NULLIF(b.value, 0), 4) AS ratio, 'Less is better' AS Remarks
+FROM 
+    (SELECT inst_id, $CON_ID value FROM GV\$SYSSTAT WHERE name = 'transaction tables consistent reads - undo records applied') a,
+    (SELECT inst_id, $CON_ID value FROM GV\$SYSSTAT WHERE name = 'transaction tables consistent read rollbacks') b
+    WHERE a.inst_id=b.inst_id --AND a.CON_ID =b.con_id 
 union all
-select 'Undo header contention' Name, to_number(to_char((select count from v\$waitstat where class='undo header') / (select sum(value) from v\$sysstat where name in ('consistent gets','db block gets')),'990.000000000')), 'Target < 1% ' Remarks from dual
+select a.inst_id, ${CONPREF}${CON_ID} 'Undo header contention' Name, a.count/b.value, 'Target < 1% ' Remarks
+    FROM (select inst_id, $CON_ID count from GV\$WAITSTAT where class='undo header' ) a, (select inst_id, $CON_ID sum(value) value from GV\$SYSSTAT where name in ('consistent gets','db block gets') GROUP BY $CON_ID INST_ID) b
+    WHERE a.inst_id=b.INST_ID
 union all
-select 'Undo block contention' Name, to_number(to_char((select count from v\$waitstat where class='undo block') / (select sum(value) from v\$sysstat where name in ('consistent gets','db block gets')),'990.000000000')), 'Target < 1% ' Remarks from dual
+select a.inst_id, ${CONPREF}${CON_ID} 'Undo block contention' Name, a.count/b.value, 'Target < 1% ' Remarks 
+    FROM (select inst_id, $CON_ID count from GV\$WAITSTAT where class='undo block' ) a, (select inst_id, $CON_ID sum(value) value from GV\$SYSSTAT where name in ('consistent gets','db block gets') GROUP BY $CON_ID INST_ID) b
+    WHERE a.inst_id=b.INST_ID  
 union all
-select 'Rollstat ratio sum(waits)*100/sum(gets)' Name,  sum(waits)* 100 / sum(gets) Ratio, 'Target < 5%, see also: "select * from v\$waitstat where class=''undo header''"' Remarks from v\$rollstat
+select INST_ID, $CON_ID 'Rollstat ratio sum(waits)*100/sum(gets)' Name,  sum(waits)* 100 / sum(gets) Ratio, 'Target < 5%, see also: "select * from gv\$waitstat where class=''undo header''"' Remarks 
+    from gv\$rollstat group by $CON_ID INST_ID
 union all
-select 'Redolog space ratio' Name, round(e.value/s.value,2) Ratio, 'Target > 5000. Increase the size of redolog buffer and logfile to faster disk' Remarks
-from v\$sysstat s, v\$sysstat e where s.name = 'redo log space requests' and e.name = 'redo entries'
+select a.inst_id, ${CONPREF}${CON_ID} 'Redolog space ratio' Name, round(b.value/a.value,2) Ratio, 'Target > 5000. Increase the size of redolog buffer and logfile to faster disk' Remarks
+from GV\$SYSSTAT a, GV\$SYSSTAT b where a.name = 'redo log space requests' and b.name = 'redo entries' and a.inst_id=b.inst_id $CONCOND
 union all
-select 'Shared pool free memory (MB)' Name, round(bytes/1024/1024,4) Ratio, 'If much free mem -- maybe its redundant??' Remarks
-    from V\$SGASTAT where name = 'free memory' and pool = 'shared pool';
+select INST_ID, $CON_ID 'Shared pool free memory (MB)' Name, round(bytes/1024/1024,4) Ratio, 'If much free mem -- maybe its redundant??' Remarks
+    from GV\$SGASTAT where name = 'free memory' and pool = 'shared pool'
+order by NAME,INST_ID $CON_ID_;
 
 prompt
-prompt "v\$latch: all ratios should be <= 1% if not then decrease the value of log_small_entry_max_size in init.ora"
-column latch_name format a20
-select name latch_name, gets, misses, immediate_gets "Immed Gets", immediate_misses "Immed Misses", trunc((misses/decode(gets,0,1,gets))*100,2) Ratio1,
+prompt "gv\$latch: all ratios should be <= 1% if not then decrease the value of log_small_entry_max_size in init.ora"
+column latch_name format a40
+select INST_ID, $CON_ID name latch_name, gets, misses, immediate_gets "Immed Gets", immediate_misses "Immed Misses", trunc((misses/decode(gets,0,1,gets))*100,2) Ratio1,
        trunc(immediate_misses/decode(immediate_misses+  immediate_gets,0,1, immediate_misses+immediate_gets)*100,2) Ratio2
-from v\$latch
-where name like 'redo%';
+from gv\$latch where name like 'redo%' $AND_INST_ID $AND_CON_ID;
 
-col event format a50;
-col WAIT_CLASS format a15;
+col event format a50
+col WAIT_CLASS format a15
 col EVENT_ID format a10 noprint
 col WAIT_CLASS_ID format a10 noprint
 col WAIT_CLASS# format a2 noprint
-col CON_ID format 99 noprint
 prompt
-prompt "v\$system_event: If Avg_wait_time is minor ignore it otherwise check the log buffer size w.r.t transaction rate and memory size"
-select * from v\$system_event
-where event like 'log%';
+prompt "gv\$system_event where event like 'log%' : If Avg_wait_time is minor ignore it otherwise check the log buffer size w.r.t transaction rate and memory size"
+select INST_ID, $CON_ID EVENT,TOTAL_WAITS, TOTAL_TIMEOUTS, TIME_WAITED, AVERAGE_WAIT, TIME_WAITED_MICRO $SQL_TEXT2_   from gv\$system_event where event like 'log%' $AND_INST_ID $AND_CON_ID ;
 
 prompt
-prompt "v\$waitstat: order by time desc (in centiseconds)"
-select * from v\$waitstat order by time desc;
-
-prompt
-prompt "dba_tables all_tab_modifications: Table Change > 100% (first 30)"
-col table_name for a30
-select * from(
-SELECT dt.owner, dt.table_name,
-       ROUND ( (DELETES + UPDATES + INSERTS) / num_rows * 100) PERCENTAGE
-FROM   dba_tables dt, all_tab_modifications atm
-WHERE  dt.owner = atm.table_owner
-       AND dt.table_name = atm.table_name
-       AND num_rows > 0
-       AND ROUND ( (DELETES + UPDATES + INSERTS) / num_rows * 100) >= 100
-ORDER BY 3 desc
-) where rownum<=30;
+prompt "gv\$waitstat: order by time desc (in centiseconds)"
+col COUNT for  9999999999
+col CLASS for a30
+col COUNT for  9999999999
+col TIME for 99999999
+col SEC_TIME for 99999999
+select INST_ID, $CON_ID CLASS, COUNT, TIME, TIME/100 SEC_TIME from gv\$waitstat where 1=1 $AND_INST_ID $AND_CON_ID order by time desc;
 EOF
 ;;
 esac
 logf
 }
 
-legend_oratop="prompt NCPU   - Number of CPU                                   AAS    - Average Active Sessions. (! if>#cpu)           IOMBPS - I/O megabytes per second (throughput)
-prompt HCPUB  - Host cpu busy %(busy/busy+idle). (! if>90%)     AST    - Active user Sessions Total (ASCPU+ASIO+ASWA)   IOPS   - I/O requests per second
-prompt CPUUPS - CPU Usage Per Sec                               ASCPU  - Active Sessions on CPU                         IORL   - I/O avg synch s/b/read latency in msec (! if>10ms)
-prompt LOAD   - Current os load. (! if>2*#CPU and high cpu)     ASIO   - Active Sessions waiting on user I/O            LOGR   - Logical reads per sec
-prompt DCTR   - DB CPU time ratio  % Cpu/DB_Time                ASWA   - Active Sessions Waiting, (! if>ASCPU+ASIO)     PHYR   - Physical reads per sec
-prompt DWTR   - DB WAIT time ratio (! if>50 and high ASWA)      ASPQ   - Active Parallel Sessions                       PHYW   - Physical writes per sec
-prompt SPFR   - Shared pool free %                              UTPS   - User transactions per sec                      TEMP   - Temp space used (Mb)
-prompt TPGA   - Total pga allocated                             UCPS   - User calls per sec                             DBTM   - Database Time Per Sec
-prompt SCT    - Session Count Total                             SSRT   - Sql service response time (T/call)"
 
-legend_dhsh="prompt AAS      - 'Average Active Sessions'         IOPS    - 'I/O Requests per Second'                          REDOKBPS - 'Redo Generated Per Sec'
-prompt BCPUUPS  - 'Background CPU Usage Per Sec'    IORL    - 'Average Synchronous Single-Block Read Latency'    REDOKBPT - 'Redo Generated Per Txn'
-prompt CPUUPS   - 'CPU Usage Per Sec'               LOGRPT  - 'Logical Reads Per Txn'                            RSPTIMPT - 'Response Time Per Txn'
-prompt BLCHPT   - 'DB Block Changes Per Txn'        LNGPS   - 'Logons Per Sec'                                   SSRT     - 'SQL Service Response Time'
-prompt ENQREQPT - 'Enqueue Requests Per Txn'        NETMBPS - 'Network Traffic Volume Per Sec'                   TPARSPT  - 'Total Parse Count Per Txn'
-prompt EXECPS   - 'Executions Per Sec'              PHYR    - 'Physical Reads Per Sec'                           UCPS     - 'User Calls Per Sec'
-prompt HCPUUPS  - 'Host CPU Usage Per Sec'          PHYRPT  - 'Physical Reads Per Txn'                           UTPS     - 'User Transaction Per Sec'
-prompt IOMBPS   - 'I/O Megabytes per Second'        PHYW    - 'Physical Writes Per Sec'                          NCPU     - 'Number of CPU'"
+
+legend_oratop="prompt NCPU   - Number of CPU                                 TPGA   - Total pga allocated                            ASPQ   - Active Parallel Sessions                 LOGR   - Logical reads per sec
+prompt HCPUB  - Host cpu busy %(busy/busy+idle). (! if>90%)   SCT    - Session Count Total                            UTPS   - User transactions per sec                PHYR   - Physical reads per sec
+prompt CPUUPS - CPU Usage Per Sec                             AAS    - Average Active Sessions. (! if>#cpu)           UCPS   - User calls per sec                       PHYW   - Physical writes per sec
+prompt LOAD   - Current os load. (! if>2*#CPU and high cpu)   AST    - Active user Sessions Total (ASCPU+ASIO+ASWA)   SSRT   - Sql service response time (T/call)       TEMP   - Temp space used (Mb)
+prompt DCTR   - DB CPU time ratio  % Cpu/DB_Time              ASCPU  - Active Sessions on CPU                         IOMBPS - I/O megabytes per second (throughput)    DBTM   - Database Time Per Sec
+prompt DWTR   - DB WAIT time ratio (! if>50 and high ASWA)    ASIO   - Active Sessions waiting on user I/O            IOPS   - I/O requests per second
+prompt SPFR   - Shared pool free %                            ASWA   - Active Sessions Waiting, (! if>ASCPU+ASIO)     IORL   - I/O avg synch s/b/read latency in msec"
+
+legend_dhsh="prompt AAS      - 'Average Active Sessions'       EXECPS  - 'Executions Per Sec'              LOGRPT  - 'Logical Reads Per Txn'       PHYW     - 'Physical Writes Per Sec'    TPARSPT - 'Total Parse Count Per Txn'
+prompt BCPUUPS  - 'Background CPU Usage Per Sec'  HCPUUPS - 'Host CPU Usage Per Sec'          LNGPS   - 'Logons Per Sec'              REDOKBPS - 'Redo Generated Per Sec'     UCPS    - 'User Calls Per Sec'
+prompt CPUUPS   - 'CPU Usage Per Sec'             IOMBPS  - 'I/O Megabytes per Second'        NETMBPS - 'Net Traffic Volume Per Sec'  REDOKBPT - 'Redo Generated Per Txn'     UTPS    - 'User Transaction Per Sec'
+prompt BLCHPT   - 'DB Block Changes Per Txn'      IOPS    - 'I/O Requests per Second'         PHYR    - 'Physical Reads Per Sec'      RSPTIMPT - 'Response Time Per Txn'      NCPU    - 'Number of CPU'
+prompt ENQREQPT - 'Enqueue Requests Per Txn'      IORL    - 'Average Synch S/B-Read Latency'  PHYRPT  - 'Physical Reads Per Txn'      SSRT     - 'SQL Service Response Time'"
 
 SET_COL_ORATOP="
 col BEGIN_TIME for a17 heading '1|BEGIN_TIME'
@@ -1658,19 +1666,29 @@ parameters()
 {
 P1_="$1"
 case "$P1_" in
+license)
+$SP <<EOF >$LOGF
+set lines 230 pages 200 heading on feedback off termout off heading on termout on timing off
+col INST_ID for  9999
+col CON_ID for  9999
+prompt
+prompt "gv\$license information about session HWM:"
+select * from gv\$license order by INST_ID;
+EOF
+;;
 services)
 $SP <<EOF >$LOGF
 set lines 230
 set echo off feed off veri off tab off pages 50
-set lines 230
+col inst_id      format 9999
 col host_name    format a40
 col service_name format a25
 col network_name format a25
-prompt v\$services:
-select (select host_name from v\$instance) host_name, name service_name,  network_name from v\$services;
+prompt gv\$services:
+select i.inst_id, i.host_name, service_id, name service_name,  network_name from gv\$services s, gv\$instance i where s.inst_id=i.inst_id order by i.inst_id, service_id;
 col name format a25
 prompt gv\$active_services:
-select service_id,name,  network_name, creation_date from  gv\$active_services order by service_id;
+select inst_id, service_id, name, network_name, creation_date from  gv\$active_services order by inst_id, service_id;
 EOF
 ;;
 dir)
@@ -1692,8 +1710,8 @@ col resource_name for a40
 col current_utilization for 999999999
 col limit_value for a15
 col percent for 999
-prompt v\$resource_limit:
-select resource_name,current_utilization,limit_value,trunc(current_utilization/limit_value*100) percent from v\$resource_limit where instr(limit_value,'UNLIMITED') = 0 and trim(to_char(limit_value))<>'0';
+prompt gv\$resource_limit:
+select inst_id,resource_name,current_utilization,limit_value,trunc(current_utilization/limit_value*100) percent from gv\$resource_limit where instr(limit_value,'UNLIMITED') = 0 and trim(to_char(limit_value))<>'0' order by resource_name,inst_id;
 EOF
 ;;
 resumable)
@@ -1945,26 +1963,6 @@ esac
 logf
 }
 
-wholink()
-{
-$SP <<'END' >> $LOGF
-set lines 230 timing off echo off feed off veri off tab off pages 90 
-col origin format a40
-col gtxid format a35
-col lsession format a15
-col username format a20
-col waiting format a40
-col WAIT_TIME for 99999999 noprint
-col sw for 99999999
-col status format a5
-select /*+ ORDERED */ substr(s.ksusemnm,1,30)||' '|| substr(s.ksusepid,1,9) "ORIGIN", substr(g.K2GTITID_ORA,1,35) "GTXID", substr(s.indx,1,4)||' '|| substr(s.ksuseser,1,5) "LSESSION" , s2.username,
-substr(decode(bitand(ksuseidl,11),1,'ACTIVE',0, decode( bitand(ksuseflg,4096) , 0,'INACTIVE','CACHED'),2,'SNIPED',3,'SNIPED', 'KILLED'),1,1) status,
-substr(w.event,1,40) "WAITING",w.WAIT_TIME, case when w.seconds_in_wait>864000 then w.seconds_in_wait/60/60/24*-1 else w.seconds_in_wait end sw
-from  x$k2gte g, x$ktcxb t, x$ksuse s, v$session_wait w, v$session s2
-where  g.K2GTDXCB =t.ktcxbxba and   g.K2GTDSES=t.ktcxbses and  s.addr=g.K2GTDSES and  w.sid=s.indx and s2.sid = w.sid;
-END
-logf
-}
 
 
 analyze()
@@ -2784,6 +2782,17 @@ case "$(db_version)" in
   *)       SQL_TEXT0=", SEGMENT_SUBTYPE " ; SQL_TEXT1=", max_size" ; SQL_TEXT2=", partitioned, compression" ; SQL_TEXT3="tablespace_name, " ; SQL_TEXT4=", s.SEGMENT_SUBTYPE "  ;;
 esac
 
+case "$P1_" in
+nonsystem)
+  $SP <<EOF >$LOGF
+  set lines 250
+  set echo off feed off veri off tab off pages 80 timing off
+  prompt "dba_segments: NON-SYSTEM objects detected in SYSTEM tablespace"
+  col owner format a30;
+  SELECT owner, count(*), tablespace_name FROM dba_segments WHERE tablespace_name = 'SYSTEM' AND owner NOT IN ('SYS','SYSTEM','CSMIG','OUTLN','WMSYS') GROUP BY owner, tablespace_name order by count(*) desc;
+EOF
+  ;;
+  *)
 $SP <<EOF >$LOGF
 set lines 250
 set echo off feed off veri off tab off pages 80 timing off
@@ -2814,6 +2823,8 @@ select s.tablespace_name, s.owner, s.segment_name, s.PARTITION_NAME, l.table_nam
 from dba_segments s, dba_lobs l where s.owner=l.owner and s.segment_name=l.segment_name and l.table_name like upper('$P1_') and s.owner like nvl(trim('$P2_'),'%')
 order by owner, segment_name, segment_type, PARTITION_NAME;
 EOF
+  ;;
+esac
 logf
 }
 
@@ -3102,6 +3113,27 @@ col distinct_keys for 999999999
 '
 
 case "$P1_" in
+modifications)
+$SP <<EOF >$LOGF
+set lines 230
+set echo off feed off veri off tab off pages 70 timing off
+prompt
+prompt "dba_tables dba_tab_modifications:  since the last time statistics were gathered on the tables. Table Change > 50% (first 30)"
+col owner for a30
+col table_name for a30
+select * from(
+SELECT dt.owner, dt.table_name,
+       ROUND ( (DELETES + UPDATES + INSERTS) / num_rows * 100) PERCENTAGE
+FROM   dba_tables dt, dba_tab_modifications atm
+WHERE  dt.owner = atm.table_owner
+       AND dt.table_name = atm.table_name
+       AND num_rows > 0
+       AND ROUND ( (DELETES + UPDATES + INSERTS) / num_rows * 100) >= 50
+       AND dt.table_name like nvl('$P2_','%') and dt.owner like nvl('$P3_','%')
+ORDER BY 3 desc
+) where rownum<=30;
+EOF
+;;
 chained)
 sysstat %continued%
 if [ -z "$P2_" ]; then P2_=10; fi
@@ -4939,35 +4971,56 @@ links()
 {
 P1_="$(tr '[a-z]' '[A-Z]' <<< $1)"
 REL=$(db_version)
-case $REL in
-9)  $SP <<EOF >$LOGF
-set lines 300
-set echo off feed off veri off tab off pages 0 timing off
-select 'create database link '||l.name||' connect to '||l.userid||' identified by "'||l.password||'" using '''||l.host||''';' 
-from link$ l, user$ u where l.owner#=u.user# and l.name=nvl('$P1_',l.name);
+case "$P1_" in
+  wholink) echo "wholink:"
+           $SP <<'EOF' >$LOGF
+           set lines 230 timing off echo off feed off veri off tab off pages 90
+           col origin format a40
+           col gtxid format a35
+           col lsession format a15
+           col username format a20
+           col waiting format a40
+           col WAIT_TIME for 99999999 noprint
+           col sw for 99999999
+           col status format a5
+           select /*+ ORDERED */ substr(s.ksusemnm,1,30)||' '|| substr(s.ksusepid,1,9) "ORIGIN", substr(g.K2GTITID_ORA,1,35) "GTXID", substr(s.indx,1,4)||' '|| substr(s.ksuseser,1,5) "LSESSION" , s2.username,
+           substr(decode(bitand(ksuseidl,11),1,'ACTIVE',0, decode( bitand(ksuseflg,4096) , 0,'INACTIVE','CACHED'),2,'SNIPED',3,'SNIPED', 'KILLED'),1,1) status,
+           substr(w.event,1,40) "WAITING",w.WAIT_TIME, case when w.seconds_in_wait>864000 then w.seconds_in_wait/60/60/24*-1 else w.seconds_in_wait end sw
+           from  x$k2gte g, x$ktcxb t, x$ksuse s, v$session_wait w, v$session s2
+           where  g.K2GTDXCB =t.ktcxbxba and   g.K2GTDSES=t.ktcxbses and  s.addr=g.K2GTDSES and  w.sid=s.indx and s2.sid = w.sid and decode(bitand(ksuseidl,11),1,'ACTIVE')='ACTIVE';
 EOF
 ;;
-*) $SP <<EOF >$LOGF
-set lines 400
-set echo off feed off veri off tab off pages 0 timing off
-select 'create database link '||l.name||' connect to '||l.userid||' identified by values '''||l.passwordx||''' using '''||l.host||''';'
-from link$ l, user$ u where l.owner#=u.user# and l.name=nvl('$P1_',l.name) order by l.name;
+  *)
+  case $REL in
+    9)  $SP <<EOF >$LOGF
+        set lines 300
+        set echo off feed off veri off tab off pages 0 timing off
+        select 'create database link '||l.name||' connect to '||l.userid||' identified by "'||l.password||'" using '''||l.host||''';' 
+        from link$ l, user$ u where l.owner#=u.user# and l.name=nvl('$P1_',l.name);
+EOF
+    ;;
+    *) $SP <<EOF >$LOGF
+       set lines 400
+       set echo off feed off veri off tab off pages 0 timing off
+       select 'create database link '||l.name||' connect to '||l.userid||' identified by values '''||l.passwordx||''' using '''||l.host||''';'
+       from link$ l, user$ u where l.owner#=u.user# and l.name=nvl('$P1_',l.name) order by l.name;
+EOF
+    ;;
+  esac
+  $SP <<EOF >>$LOGF
+  set lines 230
+  set echo off feed off veri off tab off pages 80 timing off
+  alter session set NLS_DATE_FORMAT='dd/mm/yyyy hh24:mi:ss';
+  column owner for a30
+  column name for a35
+  column userid for a30
+  column host for a45
+  column ctime for a20
+  select u.name owner,l.name,l.userid,l.host,l.ctime from link$ l, user$ u where l.owner#=u.user# and l.name=nvl('$P1_',l.name) order by owner, l.name;
+  prompt
 EOF
 ;;
 esac
-
-$SP <<EOF >>$LOGF
-set lines 230
-set echo off feed off veri off tab off pages 80 timing off
-alter session set NLS_DATE_FORMAT='dd/mm/yyyy hh24:mi:ss';
-column owner for a30
-column name for a35
-column userid for a30
-column host for a45
-column ctime for a20
-select u.name owner,l.name,l.userid,l.host,l.ctime from link$ l, user$ u where l.owner#=u.user# and l.name=nvl('$P1_',l.name) order by owner, l.name;
-prompt
-EOF
 logf
 }
 
@@ -4989,8 +5042,8 @@ round(decode(l.immediate_gets,0,0,l.immediate_misses/l.immediate_gets*100),3) im
 from v$latchname n, v$latchholder h, v$latch l
 where l.latch#=n.latch#
 and l.addr=h.laddr(+)
-and (l.immediate_misses*100>0.5*l.immediate_gets
-or misses*100>0.5*l.gets)
+and (l.immediate_misses*100>0.5*l.immediate_gets or misses*100>0.5*l.gets)
+and l.gets>0
 order by misses/l.gets desc;
 ttitle off
 
@@ -5394,8 +5447,8 @@ $SP <<EOF >$LOGF
   set lines 250 echo off feed off veri off tab off pages 40
   col job for 9999999999
   col log_user for a12
-  col last_date for a10
-  col next_date for a10
+  col last_date for a9
+  col next_date for a9
   col interval for a15
   col FAILURES for 999999
   col WHAT for a100
@@ -9245,7 +9298,7 @@ U=$(awk -F_ '{print $1}' <<< $(uname))
 case "$U" in
  CYGWIN) echo -n "DB=$sid $SYSDATE ver=$TPIVER $ls2 " ;;
  AIX)    echo -n "DB=$sid $SYSDATE ver=$TPIVER $ls2 " ;;
- *)       red=$(tput setaf 1)
+ *)      red=$(tput setaf 1)
 	 green=$(tput setaf 2)
 	 yellow=$(tput setaf 3)
 	 blue=$(tput setaf 4)
@@ -9260,9 +9313,8 @@ esac
 shopt -s nocasematch 2>/dev/null
 case "$ID" in
 ""|in=*|con=*|a|k|in|access)   echo $a__ ${reset}; active_sessions $ALL ;;
-p|ph|services|dir|resource_limit|resumable)  echo $p__ ", parameters like: "$ALL ${reset}; parameters $ALL ;;
+p|ph|license|services|dir|resource_limit|resumable)  echo $p__ ", parameters like: "$ALL ${reset}; parameters $ALL ;;
 db)        shift; ALL=$*; echo $db__ ${reset}; db $ALL ;;
-wholink)   shift; ALL=$*; echo $wholink__ ${reset}; wholink $ALL ;;
 lock)      shift; ALL=$*; echo $lock__ ${reset}; lock $ALL ;;
 analyze)   shift; ALL=$*; echo $analyze__ ${reset}; analyze $ALL ;;
 audit)     shift; ALL=$*; echo $audit__ ${reset}; audit $ALL ;;
