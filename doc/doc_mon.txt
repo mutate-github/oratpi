@@ -1,9 +1,9 @@
 
 Документация: Подсистема мониторинга и резервирования БД Oracle, использует TPI (Total Performance Insight) for Oracle
 
-Мониторинг: Выделен в отдельные скрипты, мониторящие сервера, базы, в конфиге "mon.ini.any_client_name" прописываются правила резервирования, пороги\критерии мониторинга, рассылка алертов админам на почту и в telegram канал.
+Мониторинг: Выделен в отдельные скрипты, мониторящие сервера, базы, в конфиге "mon.ini.any_client_name" прописываются правила резервирования, пороги\критерии мониторинга, рассылка алертов админам на почту, telegram канал, MAX мессенджер.
             Универсально работающий под ОС: Linux, IBM AIX, SunOS, Cygwin\OpenSSH - Windows. Начиная с версии oracle 9i и далее.
-            Удобно использовать для небольших компаний, где нет централизованного мониторинга БД oracle. Успешно мониторит ~ 150-200 инстансов БД. 
+            Удобно использовать для небольших компаний, где нет централизованного мониторинга БД oracle. Успешно мониторит ~ 100-120 инстансов БД. 
 
 
 Краткое описание:
@@ -101,19 +101,29 @@ mon.ini.any_client_name
 
 $ cat  mon.ini
 [servers]
-host=oraserver1
-host=beta
+host=mp
+host=md
+host=mu
 
-# исключения работы скриптов для хоста или БД:
+[mp]
+# sshuser=-o User=tal
+# sudo=sudo -u oracle 2>/dev/null
+db=mprd
+
+[md]
+# sshuser=-o User=tal
+# sudo=sudo -u oracle 2>/dev/null
+db=mdev
+
+[mu]
+# sshuser=-o User=tal
+# sudo=sudo -u oracle 2>/dev/null
+db=muat
+
 [exclude]
-host:db:script=beta:%:mon_swap.sh:mon_tbs.sh
-
-[oraserver1]
-db=orcl1
-db=orcl2
+host:db:script=mu:%:mon_swap.sh:mon_tbs.sh
 
 [mail]
-# script for send email
 #script=mmail
 #script=tgmail
 script=tyandex
@@ -124,11 +134,11 @@ prefix=ANY_CLIENT_NAME
 host:db:set=%:%:%
 # repeat TRIGGER mail if trg_file is older than "repeat_minutes"
 repeat_minutes=600
-# repeat TRIGGER mail at "repeat_at" hour
-repeat_at=08
+# repeat TRIGGER mail at "repeat_at" hour # enables pattern lists like +(...|...)
+repeat_at=08|12|16
 
 [admins]
-email=support@my_company.ru
+email=dba1@company.ru admin@company.ru support@company.ru
 
 [telegram]
 # telegram will send message with curl using this parameters:
@@ -141,53 +151,53 @@ host:db:set=%:%:mon_disksp.sh:mon_db.sh:mon_tbs.sh
 # sample
 # host:db:set=oraserver1:orcl:mon_db.sh:mon_alert.sh:mon_disksp.sh:mon_fra.sh:mon_ping.sh:mon_ssh.sh:mon_processes_sessions.sh:mon_stb.sh:mon_tbs.sh
 
-[resource_limit]
-# in percent %
+[max]
+url=https://3100.api.green-api.com/v3/waInstance3008474/sendMessage/f2ec0b08e41a4d9acaa9661bb9a65e6a9186f6b3228d1a8
+chat_id=-69178513145
+
+
+[threshold]
+PGA_USAGE_LIMIT=90
+DB_FILES_USAGE_LIMIT=90
+AAS_CONCUR_LIMIT=60
+AAS_COMMIT_LIMIT=60
+ORATOP_IORL_LIMIT=5
+ORATOP_DBTM_X=3
+# for resource_limit in percent %
 processes=80
 sessions=80
 enqueue_locks=80
 max_rollback_segments=80
+# resumable in counts sessions
+resumable=0
+# in minutes
+enq_locks=20
+# swap in %
+swap=90
+# osload in %
+osload=80
+# FRA limit in %
+FRA=70
+# TBS free space limit in %
+TBS_USAGE_LIMIT_PER=90
+# TBS free space limin in Gb
+TBS_USAGE_LIMIT_GB=7
+# df free space limit in %
+DISK_USAGE_LIMIT_PER=90
+# df free space limin in Gb
+DISK_USAGE_LIMIT_DB=10
+# STANDBY limit in minutes unapplied archivelogs
+STB_LAG_MINUTES=30
+# STANDBY limit count unapplied archivelogs
+STB_SEQ_GAP=100
 
 [others]
-# in counts
-resumable=0
 SSHCMD=ssh -o ConnectTimeout=5 -o ServerAliveInterval=30 -o BatchMode=yes
 
-[locks]
-# in minutes
-threshold=20
-
-[swap]
-limitPER=90
-
-[load]
-limitPER=80
-
-[diskspace]
-# free space limit in %
-limitPER=90
-# free space limin in Gb
-limitGB=10
-
-[tbs]
-# free space limit in %
-limitPER=90
-# free space limin in Gb
-limitGB=10
-
 [standby]
-# limit in minutes unapplied archivelogs
-lag_minutes=30
-# limit count unapplied archivelogs
-seq_gap=100
 # for scripts mon_stb_se.sh bck_db_se.sh bck_logs_se.sh for standby for database:  primary_host=db:standby_host
 # may be multiple standby and also Standard Edition SE
-# aisprod=aisutf:aisstb
-
-
-[fra]
-# FRA limit in %
-limitPER=80
+mp=mprod:mpstb
 
 [alert]
 part_of_day=24
@@ -197,6 +207,7 @@ exclude=ORA-01422
 exclude=ORA-06512
 exclude=ORA-12012
 
+# backup param where host:db:set=HOST:DB:NAS:RETENTION_POLICY:RETENTION_POLICY_NUM:CATALOG\NOCATALOG:LEVEL - 0 1 2 OR ANY OTHER for statement: "not backed up since time 'sysdate-1'"
 [backup]
 hours_since_lvl0=170
 hours_since_lvl1=170
@@ -206,9 +217,11 @@ level0=Sun
 level1=Wed,Fri
 level2=Mon,Tue,Sat
 target=/
-tns_catalog=rman/rman@rman_catalog
-# backup param where host:db:set=HOST:DB:NAS:RETENTION_POLICY:RETENTION_POLICY_NUM:CATALOG\NOCATALOG:LEVEL - 0 1 2 OR ANY OTHER for statement: "not backed up since time 'sysdate-1'"
-host:db:set=oraserver1:orcl:nas:RECOVERY_WINDOW_OF:7:nocatalog
+tns_catalog=rman/rman_paaswd@rman_catalog_prod
+# #backup param where host:db:set=HOST:DB:NAS:RETENTION_POLICY:RETENTION_POLICY_NUM:CATALOG\NOCATALOG:LEVEL - 0 1 2 OR ANY OTHER for statement: "not backed up since time 'sysdate-1'"
+host:db:set=mu:muat:nas/backup:REDUNDANCY:1:nocatalog:0
+# host:db:set=mp:mprod:nas/backup:RECOVERY_WINDOW_OF:5:catalog
+host:db:set=mp:mprod:nas/backup:RECOVERY_WINDOW_OF:5:nocatalog
 
 
 5. Скрипт чистки логов, трейсов и т.п. Формат запуска:
