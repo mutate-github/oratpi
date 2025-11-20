@@ -1,8 +1,6 @@
 #!/bin/bash
 
-if [ -f ~/.keychain/${HOSTNAME}-sh ]; then
-    source ~/.keychain/${HOSTNAME}-sh
-fi
+if [ -f ~/.keychain/${HOSTNAME}-sh ]; then source ~/.keychain/${HOSTNAME}-sh ; fi
 
 CLIENT="$1"
 BASEDIR=`dirname $0`

@@ -3,6 +3,8 @@ set -f
 # usage: startall_purge_traces.sh client_name
 # Talgat Mukhametshin dba.almaty@gmail.com 
 
+if [ -f ~/.keychain/${HOSTNAME}-sh ]; then source ~/.keychain/${HOSTNAME}-sh ; fi
+
 CLIENT="$1"
 HOST="$2"
 FILEPATH=$0
