@@ -9,8 +9,9 @@ sid="$2"
 # if [ -z "$sid" ]; then sid="$P1_"; fi
 shift
 shift
-args="$@"
-args=$(echo $args | sed -e 's|\*|\\*|g' -e 's|\$|\\$|g' -e 's|\;|\\;|g' -e 's|(|\\(|g' -e 's|)|\\)|g' -e 's|"|\\"|g' -e "s|'|\\\'|g" -e 's|<|\\<|g' -e 's|>|\\>|g' )  # Note: Must be escaped with \\ characters: * ; ' ! ( ) in rtpi.
+args0="$@"
+args=$(echo $args0 | sed -e 's|\*|\\*|g' -e 's|\$|\\$|g' -e 's|\;|\\;|g' -e 's|(|\\(|g' -e 's|)|\\)|g' -e 's|"|\\"|g' -e "s|'|\\\'|g" -e 's|<|\\<|g' -e 's|>|\\>|g' )  # Note: Must be escaped with \\ characters: * ; ' ! ( ) in rtpi.
+args2=$(echo $args0 | sed -e 's|"|\\"|g')
 BASEDIR=`dirname $0`
 wtpi="$BASEDIR/tpi"
 SSHCMD="ssh -o ConnectTimeout=5 -o ServerAliveInterval=30 -o BatchMode=yes"
@@ -19,7 +20,6 @@ SET_ENV_F="$BASEDIR/set_env"
 # echo "host: $P1_  sid: $sid  args: $args"
 #for tnsnames connection through .tpi_login file
 #format .tpi_login file: server sid encusername/encpassword@tns_alias
-BASEDIR=`dirname $0`
 if [ "$BASEDIR" = "/bin" ]; then
   BASEDIR=`find . -type f -name .tpi_login -exec dirname {} \;`
 fi
@@ -29,10 +29,11 @@ chmod 600 $BASEDIR/.tpi_login 2>/dev/null
 
 shopt -s nocasematch
 case "${P1_}:${sid}" in
-  SRV-ORA*:dbpro*)                       cat $wtpi | $SSHCMD mp ". ~/.ora_env; /bin/bash -s $sid '" $login_str "' $args" ;;
-  aisprod:aisutf)                        $wtpi $sid $login_str $args ;;
-  ais*:*|unit*:*|alpha:*|beta:*|crm:*)   cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.ora_env; /bin/bash -s $sid $args" ;;
-  *:*)                                   cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.bash_profile ; /bin/bash -s $sid $args" ;;
+  SRV-ORA*:dbpro*)                                                        cat $wtpi | $SSHCMD mp ". ~/.ora_env; /bin/bash -s $sid '" $login_str "' $args" ;;
+  aisprod:aisutf)                                                         $wtpi $sid $login_str $args ;;
+  ais*:*|unit*:*|alpha:*|beta:*|crm:*)                                    cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.ora_env; /bin/bash -s $sid $args" ;;
+  dsacs:*|sdsacs:*) args_b64=$(printf '%s' "$sid $args2" | base64 -w 0);  cat $wtpi | $SSHCMD someuser@$P1_ "sudo -i -u oracle /bin/bash -s tpibase64 $args_b64" ;;   # sudo -i cuts escaped characters, therefore I use base64 with 1 parameter="tpibase64"
+  *:*)                                                                    cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.bash_profile ; /bin/bash -s $sid $args" ;;
 esac
 
 exit

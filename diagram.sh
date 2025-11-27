@@ -2,7 +2,7 @@
 set -f
 
 printf "usage: ./diagram.sh sysmetric_h.log 25/11/23-0[89]  3 11 15 17 19 20 22 23 24 \n"
-printf "usage: tpi ... oratop h          | diagram.sh  3 11 15 17 19 20 22 23 24 \n"
+printf "usage: tpi ... oratop h          | diagram.sh  3 10 14 17 19 20 22 23 24 26 \n"
 printf "usage: tpi ... oratop dhsh       | diagram.sh  2 5 6 9 10 11 13 14 15 17 18 21 23 24 \n"
 printf "usage: tpi ... dhash uchart      | diagram.sh  2 3 6 7 8 9 10 13 16 \n"
 printf "usage: tpi ... dhash iostat      | diagram.sh  2 3 4 5 6 7 8 9 10 11 12 13 \n"
@@ -68,8 +68,8 @@ done
 awk '{print $1}' ${file} > /tmp/0_$$.tmp
 
 for i in $(xargs -n1 echo <<< "$all_par"); do
-  get_cols $i | awk '{printf $2" "$3"\n"}' > /tmp/${i}.tmp
-  j=$j" "/tmp/${i}.tmp
+	get_cols $i | awk '{printf $2" "$3"\n"}' > /tmp/c_$$_${i}.tmp
+  j=$j" "/tmp/c_$$_${i}.tmp
 done
 
 paste /tmp/0_$$.tmp $j | column -t

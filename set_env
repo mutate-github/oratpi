@@ -17,7 +17,7 @@ hathi|PHXPRODLIKE)          [ -r ~/hathi.env ] && source ~/hathi.env ;;
               [ -r ~/.bashrc ] && source ~/.bashrc
               ;;
       SunOS)  [ -r ~/.profile ] && source ~/.profile
-              sidlow=$(tr '[:upper:]' '[:lower:]' <<< $sid)
+              sidlow=$(tr '[A-Z]' '[a-z]' <<< $sid)
               [ -f /adm/env.${sidlow} ] && source /adm/env.${sidlow}
               ;;
       *)      ;;
