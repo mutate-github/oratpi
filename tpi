@@ -1,7 +1,7 @@
 #!/bin/bash
 set -f
 shopt -s nocasematch 2>/dev/null
-TPIVER="25.11.25"
+TPIVER="27.11.25"
 # echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 
 _P1_="$1"
@@ -7463,7 +7463,7 @@ SELECT CAST(begin_interval_time AS date) begin_time, instance_number, ROUND (AVG
                      FROM   dba_hist_snapshot sn, dba_hist_sys_time_model sy
                      WHERE       sn.dbid = sy.dbid
                              AND sn.instance_number = sy.instance_number
-                             AND sn.snap_id-1 = sy.snap_id
+                             AND sn.snap_id = sy.snap_id
                              AND sy.stat_name = 'DB time'
                              AND sn.begin_interval_time $INTERVAL_ $AND_INST_ID ))
 GROUP BY   begin_interval_time, instance_number
@@ -7471,7 +7471,7 @@ GROUP BY   begin_interval_time, instance_number
 DBTM as (
 SELECT CAST (sn.begin_interval_time AS date) begin_time, a.instance_number, ROUND ( (a.VALUE - LAG(a.VALUE) OVER ( PARTITION BY a.instance_number, a.stat_name ORDER BY a.snap_id)) / 1000000 / 60, 2) as DBtimeM
               FROM  dba_hist_sys_time_model a, dba_hist_snapshot sn
-             WHERE      sn.snap_id-1 = a.snap_id
+             WHERE      sn.snap_id = a.snap_id
                     AND a.instance_number = sn.instance_number
                     AND a.stat_name = 'DB time'
                     AND sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7479,7 +7479,7 @@ SELECT CAST (sn.begin_interval_time AS date) begin_time, a.instance_number, ROUN
 DBCPU as (
 SELECT CAST (sn.begin_interval_time AS date) begin_time, a.instance_number, ROUND ( (a.VALUE - LAG(a.VALUE) OVER ( PARTITION BY a.instance_number, a.stat_name ORDER BY a.snap_id)) / 1000000 / 60, 2) as DBCPUM
               FROM  dba_hist_sys_time_model a, dba_hist_snapshot sn
-             WHERE      sn.snap_id-1 = a.snap_id
+             WHERE      sn.snap_id = a.snap_id
                     AND a.instance_number = sn.instance_number
                     AND a.stat_name = 'DB CPU'
                     AND sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7489,7 +7489,7 @@ select cast (sn.begin_interval_time as date) begin_time, os.instance_number, rou
  from dba_hist_snapshot sn, dba_hist_osstat os
  where sn.dbid = os.dbid
  and sn.instance_number = os.instance_number
- and sn.snap_id-1 = os.snap_id
+ and sn.snap_id = os.snap_id
  and os.stat_name = 'LOAD'
  and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 ),
@@ -7515,8 +7515,8 @@ select t1.begin_time, t1.instance_number ,round(t1.busy_time / (t1.NUM_CPUS * 60
          where sn.dbid = os.dbid          
            and sn.instance_number = os.instance_number          
            and sn.instance_number = os1.instance_number          
-           and sn.snap_id-1 = os.snap_id          
-           and sn.snap_id - 2 = os1.snap_id          
+           and sn.snap_id = os.snap_id          
+           and sn.snap_id - 1 = os1.snap_id          
            and os.stat_name in ('USER_TIME', 'SYS_TIME', 'BUSY_TIME', 'IDLE_TIME', 'NUM_CPUS')          
            and os1.stat_name in ('USER_TIME', 'SYS_TIME', 'BUSY_TIME', 'IDLE_TIME', 'NUM_CPUS')          
            and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7529,13 +7529,13 @@ select cast(begin_interval_time as date) begin_time,instance_number, trunc(avg(p
                 ,case when sn.begin_interval_time = sn.startup_time then sy.value
                       else sy.value - lag(sy.value, 1) over(partition by sy.stat_id, sy.instance_number, sy.dbid,sn.startup_time order by sy.snap_id)
                  end v
-                ,(cast(end_interval_time as date) - cast(begin_interval_time as date)) * 24 * 3600 ela
+                ,(cast(end_interval_time as date) - cast(begin_interval_time as date)) * 24 * 60 * 60 ela
                   from dba_hist_snapshot  sn
                       ,dba_hist_sysstat   sy
                       ,dba_hist_stat_name stn
                  where sn.dbid = sy.dbid
                    and sn.instance_number = sy.instance_number
-                   and sn.snap_id-1 = sy.snap_id
+                   and sn.snap_id = sy.snap_id
                    and sn.dbid = stn.dbid
                    and sy.stat_id = stn.stat_id
                    and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7545,7 +7545,7 @@ select cast(begin_interval_time as date) begin_time,instance_number, trunc(avg(p
 REDO as (
 SELECT cast(sn.begin_interval_time as date) begin_time, st1.instance_number, round((st1.value-lag(st1.value,1) over (partition by st1.instance_number order by sn.begin_interval_time))/1024/1024/1024) redo_gb
 FROM  dba_hist_snapshot sn, DBA_HIST_SYSSTAT st1
-where sn.snap_id-1 = st1.snap_id
+where sn.snap_id = st1.snap_id
 and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
 and st1.stat_name ='redo size'
 and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7555,7 +7555,7 @@ SELECT cast(sn.begin_interval_time as date) begin_time, st1.instance_number,
 round((st1.value-lag(st1.value,1) over (partition by st1.instance_number order by sn.begin_interval_time))) DBBLC
 FROM 
 dba_hist_snapshot sn,DBA_HIST_SYSSTAT st1
-where sn.snap_id-1 = st1.snap_id
+where sn.snap_id = st1.snap_id
 and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
 and st1.stat_name ='db block changes'
 and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7563,7 +7563,7 @@ and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 PGA as (
 select cast(sn.begin_interval_time as date) begin_time, g.instance_number, round(g.value/1048576,2) PGAmb
 from dba_hist_snapshot sn, dba_hist_pgastat g
-where sn.snap_id-1 = g.snap_id
+where sn.snap_id = g.snap_id
 and sn.instance_number = g.instance_number
 and sn.dbid = g.dbid
 and g.name = 'total PGA allocated'
@@ -7572,10 +7572,10 @@ and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 READLAT as (
 --read latency ms
 select  cast(sn.begin_interval_time as date) begin_time, st1.INSTANCE_NUMBER,
-round( (st1.time_waited_micro -lead(st1.time_waited_micro,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) )  /
-(st1.total_waits -lead(st1.total_waits,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) ) /1000,2 ) as READLAT
+round( (st1.time_waited_micro -lag(st1.time_waited_micro,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) )  /
+(st1.total_waits -lag(st1.total_waits,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) ) /1000,2 ) as READLAT
 from  DBA_HIST_SYSTEM_EVENT st1,dba_hist_snapshot sn
-where sn.snap_id-1 = st1.snap_id  
+where sn.snap_id = st1.snap_id  
 and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
 and st1.event_name  = 'db file sequential read'
 and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7583,10 +7583,10 @@ and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 LFPWLAT as (
 -- log file parallel write latency ms
 select  cast(sn.begin_interval_time as date) begin_time, st1.INSTANCE_NUMBER,
-round( (st1.time_waited_micro -lead(st1.time_waited_micro,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) )  /
-(st1.total_waits -lead(st1.total_waits,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) ) /1000,2) as LFPWLAT
+round( (st1.time_waited_micro -lag(st1.time_waited_micro,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) )  /
+(st1.total_waits -lag(st1.total_waits,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) ) /1000,2) as LFPWLAT
 from  DBA_HIST_SYSTEM_EVENT st1,dba_hist_snapshot sn
-where sn.snap_id-1 = st1.snap_id  
+where sn.snap_id = st1.snap_id  
 and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
 and st1.event_name = 'log file parallel write'
 and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7594,10 +7594,10 @@ and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 LFSYLAT as (
 --log file sync latency ms
 select  cast(sn.begin_interval_time as date) begin_time, st1.INSTANCE_NUMBER,
-round( (st1.time_waited_micro -lead(st1.time_waited_micro,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) )  /
-(st1.total_waits -lead(st1.total_waits,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) ) /1000,2 ) as LFSYLAT
+round( (st1.time_waited_micro -lag(st1.time_waited_micro,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) )  /
+(st1.total_waits -lag(st1.total_waits,1) over (partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) ) /1000,2 ) as LFSYLAT
 from  DBA_HIST_SYSTEM_EVENT st1,dba_hist_snapshot sn
-where sn.snap_id-1 = st1.snap_id  
+where sn.snap_id = st1.snap_id  
 and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
 and st1.event_name = 'log file sync'
 and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7606,7 +7606,7 @@ PHYRE as (
 SELECT cast(sn.begin_interval_time as date) begin_time, st1.INSTANCE_NUMBER, 
 trunc((st1.value-lag(st1.value,1) over (partition by st1.INSTANCE_NUMBER, st1.stat_name order by sn.begin_interval_time))/1024/1024,2) as PHYREMBT
 FROM  dba_hist_snapshot sn,DBA_HIST_SYSSTAT st1
-where  sn.snap_id-1 = st1.snap_id
+where  sn.snap_id = st1.snap_id
 and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
 and st1.stat_name = 'physical read total bytes'
 and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7615,25 +7615,29 @@ PHYWR as (
 SELECT cast(sn.begin_interval_time as date) begin_time, st1.INSTANCE_NUMBER, 
 trunc((st1.value-lag(st1.value,1) over (partition by st1.INSTANCE_NUMBER, st1.stat_name order by sn.begin_interval_time))/1024/1024,2) as PHYWRMBT
 FROM  dba_hist_snapshot sn,DBA_HIST_SYSSTAT st1
-where  sn.snap_id-1 = st1.snap_id
+where  sn.snap_id = st1.snap_id
 and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
 and st1.stat_name = 'physical write total bytes'
 and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 ),
 PHREMbps as (
 SELECT cast(sn.begin_interval_time as date) begin_time, st1.INSTANCE_NUMBER,
-round((st1.value-lag(st1.value,1) over (partition by st1.INSTANCE_NUMBER,st1.stat_name order by sn.begin_interval_time))/1024/1024/EXTRACT(day FROM (end_interval_time - begin_interval_time)*24*60*60),2) PHREMbps
- FROM dba_hist_snapshot sn,DBA_HIST_SYSSTAT st1
-where sn.snap_id-1 = st1.snap_id
+round((st1.value-lag(st1.value,1) over (partition by st1.INSTANCE_NUMBER,st1.stat_name order by sn.begin_interval_time))/1024/1024/
+NULLIF( (CAST(sn.end_interval_time AS DATE) - CAST(sn.begin_interval_time AS DATE)) * 24 * 60 * 60 , 0)
+,2) PHREMbps
+ FROM dba_hist_snapshot sn, DBA_HIST_SYSSTAT st1
+where sn.snap_id = st1.snap_id
 and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
 and st1.stat_name = 'physical read total bytes'
 and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 ),
 PHWRMbps as (
 SELECT cast(sn.begin_interval_time as date) begin_time, st1.INSTANCE_NUMBER,
-round((st1.value-lag(st1.value,1) over (partition by st1.INSTANCE_NUMBER,st1.stat_name order by sn.begin_interval_time))/1024/1024/EXTRACT(day FROM (end_interval_time - begin_interval_time)*24*60*60),2) PHWRMbps
- FROM dba_hist_snapshot sn,DBA_HIST_SYSSTAT st1
-where sn.snap_id-1 = st1.snap_id
+round((st1.value-lag(st1.value,1) over (partition by st1.INSTANCE_NUMBER,st1.stat_name order by sn.begin_interval_time))/1024/1024/
+NULLIF( (CAST(sn.end_interval_time AS DATE) - CAST(sn.begin_interval_time AS DATE)) * 24 * 60 * 60, 0)
+,2) PHWRMbps
+ FROM dba_hist_snapshot sn, DBA_HIST_SYSSTAT st1
+where sn.snap_id = st1.snap_id
 and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
 and st1.stat_name = 'physical write total bytes'
 and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7641,7 +7645,7 @@ and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 PHREIOPS as (
 select cast(sn.begin_interval_time as date) begin_time, st1.INSTANCE_NUMBER, round(average) PHREIOPS
  from dba_hist_sysmetric_summary st1,dba_hist_snapshot sn
-where sn.snap_id-1 = st1.snap_id
+where sn.snap_id = st1.snap_id
   and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
   and st1.metric_name = 'Physical Read Total IO Requests Per Sec'
   and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
@@ -7649,36 +7653,34 @@ where sn.snap_id-1 = st1.snap_id
 PHWRIOPS as (
 select cast(sn.begin_interval_time as date) begin_time, st1.INSTANCE_NUMBER, round(average) PHWRIOPS
  from dba_hist_sysmetric_summary st1,dba_hist_snapshot sn
-where sn.snap_id-1 = st1.snap_id
+where sn.snap_id = st1.snap_id
   and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
   and st1.metric_name = 'Physical Write Total IO Requests Per Sec'
   and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 ),
 ENQTXms as (
-select cast(sn.begin_interval_time as date) begin_time,sn.INSTANCE_NUMBER,nvl(round((lead(st1.time_waited_micro, 1) over(partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) - st1.time_waited_micro) / 1000, 2), 0) as ENQTXms
-  from dba_hist_snapshot sn
- right join v\$event_name en
-    on en.name = 'enq: TX - row lock contention'
-  left join DBA_HIST_SYSTEM_EVENT st1
-    on sn.snap_id-1 = st1.snap_id
-   and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
-   and en.name = st1.event_name
- where sn.begin_interval_time $INTERVAL_ $AND_INST_ID
+SELECT CAST(sn.begin_interval_time AS DATE) AS begin_time, sn.INSTANCE_NUMBER, ROUND(GREATEST(st1.time_waited_micro - LAG(st1.time_waited_micro) OVER (PARTITION BY st1.INSTANCE_NUMBER, sn.startup_time ORDER BY sn.snap_id), 0) / 1000, 0 ) AS ENQTXms
+FROM dba_hist_snapshot sn
+JOIN DBA_HIST_SYSTEM_EVENT st1 
+    ON sn.snap_id = st1.snap_id
+   AND sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
+WHERE st1.event_name = 'enq: TX - row lock contention' 
+AND sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 ), 
 ENQTMms as (
-select cast(sn.begin_interval_time as date) begin_time,sn.INSTANCE_NUMBER,nvl(round((lead(st1.time_waited_micro, 1) over(partition by st1.INSTANCE_NUMBER, st1.event_name order by st1.snap_id) - st1.time_waited_micro) / 1000, 2), 0) as ENQTMms
-  from dba_hist_snapshot sn
- right join v\$event_name en
-    on en.name = 'enq: TM - contention'
-  left join DBA_HIST_SYSTEM_EVENT st1
-    on sn.snap_id-1 = st1.snap_id
-   and sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
-   and en.name = st1.event_name
- where sn.begin_interval_time $INTERVAL_ $AND_INST_ID
+SELECT CAST(sn.begin_interval_time AS DATE) AS begin_time, sn.INSTANCE_NUMBER, ROUND(GREATEST(st1.time_waited_micro - LAG(st1.time_waited_micro) OVER (PARTITION BY st1.INSTANCE_NUMBER, sn.startup_time ORDER BY sn.snap_id), 0) / 1000, 0 ) AS ENQTMms
+FROM dba_hist_snapshot sn
+JOIN DBA_HIST_SYSTEM_EVENT st1
+    ON sn.snap_id = st1.snap_id
+   AND sn.INSTANCE_NUMBER = st1.INSTANCE_NUMBER
+WHERE st1.event_name = 'enq: TM - contention'
+AND sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 ),
 TRAN as (
 SELECT cast(sn.begin_interval_time as date) begin_time, A.INSTANCE_NUMBER,
-round((a.VALUE - LAG(a.VALUE) OVER(partition by a.INSTANCE_NUMBER, a.STAT_NAME ORDER BY a.SNAP_ID)) / EXTRACT(day FROM (sn.end_interval_time - sn.begin_interval_time)*24*60), 1) TRANMIN
+round((a.VALUE - LAG(a.VALUE) OVER(partition by a.INSTANCE_NUMBER, a.STAT_NAME ORDER BY a.SNAP_ID)) / 
+NULLIF( (CAST(sn.end_interval_time AS DATE) - CAST(sn.begin_interval_time AS DATE)) * 24 * 60, 0)
+, 1) TRANMIN
 from dba_hist_sysstat  a, DBA_HIST_SNAPSHOT sn
 WHERE A.SNAP_ID = sn.SNAP_ID AND A.INSTANCE_NUMBER = sn.INSTANCE_NUMBER
 and a.STAT_NAME = 'user commits'
@@ -7686,7 +7688,9 @@ and sn.begin_interval_time $INTERVAL_ $AND_INST_ID
 ),
 ROLL as (
 SELECT cast(sn.begin_interval_time as date) begin_time, A.INSTANCE_NUMBER,
-round((a.VALUE - LAG(a.VALUE) OVER(partition by a.INSTANCE_NUMBER, a.STAT_NAME ORDER BY a.SNAP_ID)) / EXTRACT(day FROM (sn.end_interval_time - sn.begin_interval_time)*24*60), 1) ROLLMIN
+round((a.VALUE - LAG(a.VALUE) OVER(partition by a.INSTANCE_NUMBER, a.STAT_NAME ORDER BY a.SNAP_ID)) / 
+NULLIF( (CAST(sn.end_interval_time AS DATE) - CAST(sn.begin_interval_time AS DATE)) * 24 * 60, 0)
+, 1) ROLLMIN
 from dba_hist_sysstat  a, DBA_HIST_SNAPSHOT sn
 WHERE A.SNAP_ID = sn.SNAP_ID AND A.INSTANCE_NUMBER = sn.INSTANCE_NUMBER
 and a.STAT_NAME = 'transaction rollbacks'
