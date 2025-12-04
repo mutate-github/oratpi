@@ -1,8 +1,8 @@
 #!/bin/bash
+# echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 set -f
 shopt -s nocasematch 2>/dev/null
-TPIVER="27.11.25"
-# echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
+TPIVER="04.12.25"
 
 _P1_="$1"
 if [[ $_P1_ =~ tpibase64 ]]; then
@@ -84,7 +84,7 @@ init_msg()
   corrupt__="corrupt [{rowid|dba} ID] | [fb (FILE) (BLOCK)] - Find object by ROWID, Find object by DBA, Find DB Object in dba_extents by file/block, v\$database_block_corruption v\$nonlogged_block information"
   sql__="sql [ [top] | [SQL_ID | SQLTEXT] | [plan SQL_ID] | [expand SQL_ID] | [sqlarea_vercnt] | [child_reason SQL_ID] | sql_bind_metadata SQL_ID | sql_shared_cursor SQL_ID | [sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] ] - Find out sql_id by SQLTEXT\SQL_ID from V\$SQL, plan from VSQL_PLAN by sql_id, sqlstat from V\$SQLSTAT by sql_id, GV$\SQLAREA"
   ash__="ash [in=INST_ID] [con=CON_ID]  [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [pga [sess]|EVENT]] [all [EVENT]] [SQL_ID|SQL_TEXT] | plan SQL_ID [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | waitchains [\"username||':'||program2||':'||sql_opname||':'||event2\" \"event2 like 'enq: TX %'\"] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV\$ACTIVE_SESSION_HISTORY  escape \' "
-  dhash__="dhash [in=INST_ID] [con=CON_ID] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [pga [sess]|EVENT]] [all [EVENT]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|pio|lio|cpu|exe|ela|fch|sor|iow|row] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | waitchains [\"username||':'||program2||':'||sql_opname||':'||event2\" \"event2 like 'enq: TX %'\"] | growseg [TBS] [SEGMENT] | segstat [SEGMENT] [OWNER] [SORT_COL] | temp [sizeMb] | (umc)chart | iostat [df|redo|ctl|temp|arch|other] ] | awrinfo - Top SQL, Events, Sessions DBA_HIST_ACTIVE_SESS_HISTORY esape \'"
+  dhash__="dhash [in=INST_ID] [con=CON_ID] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [pga [sess]|EVENT]] [all [EVENT]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|pio|lio|cpu|exe|ela|fch|sor|iow|row] [executions] | cmpsql [PERCENT | dd/mm/yy-HH:MI-HH:MI [PERCENT]] |  | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | waitchains [\"username||':'||program2||':'||sql_opname||':'||event2\" \"event2 like 'enq: TX %'\"] | growseg [TBS] [SEGMENT] | segstat [SEGMENT] [OWNER] [SORT_COL] | temp [sizeMb] | (umc)chart | iostat [df|redo|ctl|temp|arch|other] ] | awrinfo - Top SQL, Events, Sessions DBA_HIST_ACTIVE_SESS_HISTORY esape \'"
   oratop__="oratop [ h [in=INST_ID] [con=CON_ID] | dhsh [in=INST_ID] [con=CON_ID] [dd/mm/yy-HH:MI-HH:MI(hours) - def3d] ] - Database and Instance parameters, h - history V\$SYSMETRIC_HISTORY V\$ACTIVE_SESSION_HISTORY, dhsh - dba_hist_sysmetric_history dba_hist_snapshot"
   spm__="spm [days def7 - baselines] [find %|SQL_HANDLE SQL_PLAN_NAME] [ blplan %|SQL_HANDLE (PLAN_NAME) | blexec [count] | bllpfcc SQL_ID PLAN_HASH_VALUE [SQL_HANDLE] | bllpfawr SQL_ID PLAN_HASH_VALUE MIN_SNAP_ID MAX_SNAP_ID | blchattr SQL_HANDLE PLAN_NAME ATTR VALUE | blchplan NEW_SQL_ID NEW_PHV OLD_SQLSET_NAME | blevolve SQL_HANDLE PLAN_NAME | sqlset_list SQLSET_NAME OWNER | sqlset_plan SQLSET_NAME SQL_ID [PHV] | sqlset_drop SQLSET_NAME | bldrop SQL_HANDLE (PLAN_NAME) | sqltune [SQL_ID | awr SQL_ID begin_snap end_snap]  | sqltune_report TASK_NAME | sqltune_accept TASK_NAME | sqltune_create_plan_bl TASK_NAME OWNER PLAN_HASH_VALUE | sqltune_list [TASK_NAME] [cnt] | sqltune_drop TASK_NAME | sql_profiles | import_sql_profile SQL_ID_SRC PHV_SRC SQL_ID_TARGET | sql_profile_chattr TASK_NAME ATTR VALUE  | sql_profile_drop NAME | hints profile|baseline|patch NAME | sqlpatch_list | sqlpatch_create SQL_ID \'HINTS\' | sqlpatch_alter PATCHNAME enable|disable | sqlpatch_drop PATCHNAME | report_sql_monitor SQL_ID ]"
 }
@@ -3394,8 +3394,13 @@ AS
   used_bytes NUMBER;
   alloc_bytes NUMBER;
 BEGIN
-  dbms_space.space_usage(UPPER(index_owner), UPPER(index_name), 'INDEX', unformatted_blocks, unformatted_bytes, fs1_blocks, fs1_bytes, fs2_blocks,
-  fs2_bytes, fs3_blocks, fs3_bytes, fs4_blocks, fs4_bytes, full_blocks, full_bytes);
+  begin
+    dbms_space.space_usage(UPPER(index_owner), UPPER(index_name), 'INDEX', unformatted_blocks, unformatted_bytes, fs1_blocks, fs1_bytes, fs2_blocks,
+       fs2_bytes, fs3_blocks, fs3_bytes, fs4_blocks, fs4_bytes, full_blocks, full_bytes);
+    exception when others then
+       dbms_output.put_line(sqlerrm(sqlcode)||' -> '||index_owner||'.'||index_name);
+       return -1;
+  end;
   dbms_space_bytes:=unformatted_bytes+fs1_bytes+fs2_bytes+fs3_bytes+fs4_bytes+full_bytes;
   dbms_space.create_index_cost(dbms_metadata.get_ddl('INDEX', UPPER(index_name), UPPER(index_owner)), used_bytes, alloc_bytes);
   IF (dbms_space_bytes <> 0) THEN
@@ -3834,6 +3839,7 @@ $SP <<'EOF' >$LOGF
 set lines 230
 set echo off feed off veri off tab off timi off pages 50
 column member for a80
+column status for a16
 column thread# for 99999
 column group# for 99999
 column bytes for 99999999999
@@ -7115,7 +7121,7 @@ sqlstat)
  col instance_number for 999 heading "IN"
  col con_id for 999 heading "CON"
  column snap_id for 999999
- column end_interval_time for a17 heading 'END_TIME'
+ column begin_interval_time for a17 heading 'BEGIN_TIME'
  column sql_id for a13
  column plan_hash_value for 9999999999 heading 'PLAN_HASH_V'
  column optimizer_cost for 99999999 heading 'COST'
@@ -7136,7 +7142,7 @@ case "$LEN_" in
  $SP <<EOF >$LOGF
  PROMPT "SQLStats from dba_hist_sqlstat  for sql_id: $SQL_ID_ and begin_interval_time $INTERVAL_"
  $SQL_SQLSTAT
- select hs.instance_number, $XCON_ID hs.snap_id,to_char(hs.end_interval_time,'dd/mm/yy hh24:mi:ss') end_interval_time, sql_id,plan_hash_value,optimizer_cost,module, parsing_schema_name,
+ select hs.instance_number, $XCON_ID hs.snap_id,to_char(hs.begin_interval_time,'dd/mm/yy hh24:mi:ss') begin_interval_time, sql_id,plan_hash_value,optimizer_cost,module, parsing_schema_name,
  trunc(fetches_delta / decode(executions_delta, 0, 1, executions_delta)) fetches_delta,
  trunc(sorts_delta / decode(executions_delta, 0, 1, executions_delta)) sorts_delta,
  executions_delta,
@@ -7151,7 +7157,7 @@ case "$LEN_" in
  hs.snap_id in (select snap_id from DBA_HIST_SNAPSHOT where begin_interval_time $INTERVAL_ ) $AND_INST_ID $AND_CON_ID
  and hs.dbid = (select dbid from v\$database)
  and executions_delta > 0
- order by snap_id, end_interval_time;
+ order by snap_id, begin_interval_time;
 EOF
 ;;
  *)
@@ -7172,7 +7178,7 @@ EOF
  PROMPT "TOP 40 SQLStats from dba_hist_sqlstat where begin_interval_time $INTERVAL_ order by $S1_ "
  $SQL_SQLSTAT
  select * from (
- select hs.instance_number, $XCON_ID hs.snap_id,to_char(hs.end_interval_time,'dd/mm/yy hh24:mi:ss') end_interval_time, sql_id,plan_hash_value,
+ select hs.instance_number, $XCON_ID hs.snap_id,to_char(hs.begin_interval_time,'dd/mm/yy hh24:mi:ss') begin_interval_time, sql_id,plan_hash_value,
  trunc(fetches_delta / decode(executions_delta, 0, 1, executions_delta)) fetches_delta,
  trunc(sorts_delta / decode(executions_delta, 0, 1, executions_delta)) sorts_delta,
  executions_delta,
@@ -7192,6 +7198,155 @@ EOF
 EOF
 ;;
 esac
+;;
+cmpsql)
+if [ $(is_number $(awk -F"/" '{print $2}' <<< "$*")) -eq 0 ]; then
+  PERCENT_=$(awk '{print $2}' <<< "$*")
+  if [ -z "$PERCENT_" ]; then PERCENT_='20'; fi
+  $SP <<EOF >$LOGF
+set lines 230 pages 90 feedback off
+PROMPT "Compare elapsed_time execution sql from v\$sqlarea and dba_hist_sqlstat where begin_interval_time $INTERVAL_"
+WITH current_stats AS (
+    SELECT sql_id, plan_hash_value, executions, elapsed_time,
+        CASE WHEN executions > 0 THEN elapsed_time / executions
+            ELSE NULL
+        END AS avg_etime_current  -- в микросекундах
+    FROM v\$sqlarea
+    WHERE executions > 0
+      AND elapsed_time > 0
+),
+awr_stats AS (
+    SELECT sql_id, plan_hash_value, SUM(executions_delta) AS total_execs, SUM(elapsed_time_delta) AS total_etime,
+        CASE WHEN SUM(executions_delta) > 0 THEN SUM(elapsed_time_delta) / SUM(executions_delta)
+            ELSE NULL
+        END AS avg_etime_hist  -- в микросекундах
+    FROM dba_hist_sqlstat h
+    JOIN dba_hist_snapshot s
+        ON h.snap_id = s.snap_id
+        AND h.dbid = s.dbid
+        AND h.instance_number = s.instance_number
+    WHERE s.begin_interval_time  $INTERVAL_       --s.end_interval_time >= SYSDATE - 5/24  -- последние 5 часов
+      AND h.executions_delta > 0
+      AND h.elapsed_time_delta > 0
+    GROUP BY sql_id , plan_hash_value
+)
+SELECT c.sql_id, a.plan_hash_value PHV_AWR, ROUND(a.avg_etime_hist / 1000000, 5)    AS avg_etime_hist_sec,
+       c.plan_hash_value PHV_SQLAREA, ROUND(c.avg_etime_current / 1000000, 5) AS avg_etime_current_sec,
+       ROUND((c.avg_etime_current - a.avg_etime_hist) / NULLIF(a.avg_etime_hist, 0) * 100, 0) AS pct_increase
+FROM current_stats c
+JOIN awr_stats a
+    ON c.sql_id = a.sql_id
+    --AND c.plan_hash_value = a.plan_hash_value
+WHERE c.avg_etime_current > a.avg_etime_hist + ((a.avg_etime_hist / 100) * $PERCENT_ )         -- * 1.2  -- рост > 20%
+  AND a.avg_etime_hist IS NOT NULL
+  AND c.avg_etime_current IS NOT NULL
+ORDER BY pct_increase DESC;
+EOF
+else
+  shift
+  DD_=$(awk -F- '{print $1}' <<< "$*")
+  HHB_=$(awk -F- '{print $2}' <<< "$*")
+  HHE_=$((awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*")
+  HHR_=$(awk '$1!~/:/{print $1}' <<< "$HHE_")
+  if [ -n "$HHR_" ]; then
+    INTERVAL2_="between to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') and to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') + interval '$HHR_' hour +  interval '2' minute"
+    shift
+  else
+    INTERVAL2_="between to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') and to_date('$DD_ $HHE_','dd/mm/yy hh24:mi') + interval '2' minute"
+    shift
+  fi
+  PERCENT_=$(awk '{print $1}' <<< "$*")
+  if [ -z "$PERCENT_" ]; then PERCENT_='20'; fi
+  $SP <<EOF >$LOGF
+PROMPT
+PROMPT "Compare elapsed_time/exec NO PHV two periods dba_hist_sqlstat h1 where begin_interval_time $INTERVAL_ and dba_hist_sqlstat h2 $INTERVAL2_"
+   WITH awr_period1 AS (
+    SELECT sql_id, SUM(executions_delta) AS total_execs, SUM(elapsed_time_delta) AS total_etime,
+        CASE WHEN SUM(executions_delta) > 0
+            THEN SUM(elapsed_time_delta) / SUM(executions_delta)
+            ELSE NULL
+        END AS avg_etime  -- микросекунды, взвешенное среднее по всем планам
+    FROM dba_hist_sqlstat h
+    JOIN dba_hist_snapshot s
+        ON h.snap_id = s.snap_id
+        AND h.dbid = s.dbid
+        AND h.instance_number = s.instance_number
+    WHERE s.begin_interval_time $INTERVAL_
+      AND h.executions_delta > 0
+      AND h.elapsed_time_delta > 0
+    GROUP BY sql_id
+),
+awr_period2 AS (
+    SELECT sql_id, SUM(executions_delta) AS total_execs, SUM(elapsed_time_delta) AS total_etime,
+        CASE WHEN SUM(executions_delta) > 0
+            THEN SUM(elapsed_time_delta) / SUM(executions_delta)
+            ELSE NULL
+        END AS avg_etime  -- микросекунды
+    FROM dba_hist_sqlstat h
+    JOIN dba_hist_snapshot s
+        ON h.snap_id = s.snap_id
+        AND h.dbid = s.dbid
+        AND h.instance_number = s.instance_number
+    WHERE s.begin_interval_time $INTERVAL2_
+      AND h.executions_delta > 0
+      AND h.elapsed_time_delta > 0
+    GROUP BY sql_id
+)
+SELECT p1.sql_id, ROUND(p1.avg_etime / 1000000, 5) AS avg_etime_sec_period1, ROUND(p2.avg_etime / 1000000, 5) AS avg_etime_sec_period2, ROUND( (p2.avg_etime - p1.avg_etime) / NULLIF(p1.avg_etime, 0) * 100, 0) AS pct_increase
+FROM awr_period1 p1
+JOIN awr_period2 p2
+    ON p1.sql_id = p2.sql_id
+WHERE p2.avg_etime > p1.avg_etime + ((p1.avg_etime / 100) * $PERCENT_ )         -- p1.avg_etime * 1.2 -- рост > 20%
+  AND p1.avg_etime IS NOT NULL
+  AND p2.avg_etime IS NOT NULL
+ORDER BY pct_increase DESC;
+
+PROMPT
+PROMPT "Compare elapsed_time/exec with PHV for two period dba_hist_sqlstat h1 where begin_interval_time $INTERVAL_ and dba_hist_sqlstat h2 $INTERVAL2_"
+set lines 250 pages 80
+WITH awr_stats1 AS (
+    SELECT sql_id, plan_hash_value, SUM(executions_delta) AS total_execs, SUM(elapsed_time_delta) AS total_etime,
+        CASE WHEN SUM(executions_delta) > 0 THEN SUM(elapsed_time_delta) / SUM(executions_delta)
+            ELSE NULL
+        END AS avg_etime_hist  -- в микросекундах
+    FROM dba_hist_sqlstat h
+    JOIN dba_hist_snapshot s 
+        ON h.snap_id = s.snap_id
+        AND h.dbid = s.dbid
+        AND h.instance_number = s.instance_number
+    WHERE s.begin_interval_time $INTERVAL_
+      AND h.executions_delta > 0
+      AND h.elapsed_time_delta > 0
+    GROUP BY sql_id, plan_hash_value
+),
+awr_stats2 AS (
+    SELECT sql_id, plan_hash_value, SUM(executions_delta) AS total_execs, SUM(elapsed_time_delta) AS total_etime,
+        CASE WHEN SUM(executions_delta) > 0 THEN SUM(elapsed_time_delta) / SUM(executions_delta)
+            ELSE NULL
+        END AS avg_etime_hist  -- в микросекундах
+    FROM dba_hist_sqlstat h
+    JOIN dba_hist_snapshot s 
+        ON h.snap_id = s.snap_id
+        AND h.dbid = s.dbid
+        AND h.instance_number = s.instance_number
+    WHERE s.begin_interval_time $INTERVAL2_
+      AND h.executions_delta > 0
+      AND h.elapsed_time_delta > 0
+    GROUP BY sql_id, plan_hash_value
+)
+SELECT a1.sql_id, a1.plan_hash_value PHV_AWR1, ROUND(a1.avg_etime_hist / 1000000, 5) AS avg_etime_hist1_sec,
+       a2.plan_hash_value PHV_AWR2,  ROUND(a2.avg_etime_hist / 1000000, 5) AS avg_etime_hist2_sec, 
+       ROUND((a2.avg_etime_hist - a1.avg_etime_hist) / NULLIF(a1.avg_etime_hist, 0) * 100, 0) AS pct_increase
+FROM awr_stats1 a1
+JOIN awr_stats2 a2
+    ON a1.sql_id = a2.sql_id
+    AND a1.plan_hash_value = a2.plan_hash_value
+WHERE a2.avg_etime_hist > a1.avg_etime_hist + ((a1.avg_etime_hist / 100) * $PERCENT_ )         -- a1.avg_etime_hist * 1.2  -- рост > 20%
+  AND a1.avg_etime_hist IS NOT NULL
+  AND a2.avg_etime_hist IS NOT NULL
+ORDER BY pct_increase DESC;
+EOF
+fi
 ;;
 growseg)
  TBS=$(awk '{print $2}' <<< "$*")
@@ -7234,12 +7389,12 @@ EOF
    column SEGMENT_NAME for a30
    column TABLESPACE for a20
    column SUBOBJECT_NAME for a46
-   column end_interval_time for a13 heading "end_interval_time"
+   column begin_interval_time for a13 heading "begin_interval_time"
    column space_used_delta for 999999999 heading "Space grows (MB)"
    column usage for 9999990.99 heading "% of Grows"
    BREAK ON REPORT
    COMPUTE SUM LABEL 'SUM' OF space_used_delta on report
-   select * from (select to_char(end_interval_time, 'DD/MM/YYYY HH24') end_interval_time, c.owner, c.segment_name, b.SUBOBJECT_NAME, c.tablespace_name,
+   select * from (select to_char(begin_interval_time, 'DD/MM/YYYY HH24') begin_interval_time, c.owner, c.segment_name, b.SUBOBJECT_NAME, c.tablespace_name,
    round(sum(space_used_delta) / 1024 / 1024, 2) space_used_delta,
    trunc(sum(c.bytes) / 1024 / 1024) "Total Object Size (MB)",
    round((sum(space_used_delta) / sum(c.bytes)) * 100, 2) usage
@@ -7247,9 +7402,9 @@ EOF
    where begin_interval_time $INTERVAL_
    and sn.snap_id = a.snap_id and b.object_id = a.obj# and b.owner = c.owner and b.object_name = c.segment_name
    and c.segment_name = '$SEG' and c.tablespace_name like nvl(trim('$TBS'),'%')
-   group by to_char(end_interval_time, 'DD/MM/YYYY HH24'), c.owner, c.segment_name, b.SUBOBJECT_NAME, c.tablespace_name
+   group by to_char(begin_interval_time, 'DD/MM/YYYY HH24'), c.owner, c.segment_name, b.SUBOBJECT_NAME, c.tablespace_name
    having sum(space_used_delta) > 0 )
-   order by owner, segment_name, to_date(end_interval_time, 'DD/MM/YYYY HH24');
+   order by owner, segment_name, to_date(begin_interval_time, 'DD/MM/YYYY HH24');
 EOF
  fi
 ;;
