@@ -65,7 +65,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     $BASEDIR/iniget.sh $CONFIG alert:${HOST}:${DB} exclude >> $EXCLFILE
     AWKFILE=$LOGDIR/mon_alert_${HOST}_${DB}_awkfile.awk
 
-    $WRTPI $HOST $DB alert $LINES > $LOGF
+    $WRTPI $HOST $DB alert $LINES | sed -n '/DB=/,$p' > $LOGF
     sed -i '1d' $LOGF
     head -1 $LOGF > $LOGF_HEAD
     sed -i '1d' $LOGF
