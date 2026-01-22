@@ -2,7 +2,7 @@
 # echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 set -f
 shopt -s nocasematch 2>/dev/null
-TPIVER="24.12.25"
+TPIVER="22.01.26"
 
 _P1_="$1"
 if [[ $_P1_ =~ tpibase64 ]]; then
@@ -35,8 +35,8 @@ ALL="$*"
 # ALL=$(echo $*)
 # echo "tpi ALL: "$ALL
 
-#NLS_LANG=AMERICAN_AMERICA.CL8MSWIN1251
-#export NLS_LANG
+NLS_LANG=AMERICAN_AMERICA.AL32UTF8
+export NLS_LANG
 
 init_msg()
 {
@@ -233,11 +233,6 @@ tr -d '\r' <<< "$VALUE"
 
 case $(db_is_open) in
 OPEN)
-NLS_VALUE=$($SP <<'END'
-set pagesize 0 feedback off verify off heading off echo off timing off tab off
-select case when value like '%UTF%' then value else 'CL8MSWIN1251' end from nls_database_parameters where parameter='NLS_CHARACTERSET';
-END
-)
 SYSDATE=$($SP <<'ENDS'
 set pagesize 0 feedback off verify off heading off echo off timing off tab off
 select to_char(sysdate,'dd/mm/yy-hh24:mi:ss') from dual;
@@ -247,11 +242,6 @@ ENDS
 *) : ;;
 esac
 
-NLS_VALUE=$(tr -d '\r' <<< "$NLS_VALUE")
-NLS_LANG=AMERICAN_AMERICA.$NLS_VALUE
-# NLS_LANG=AMERICAN_AMERICA.AL32UTF8
-export NLS_LANG
-WINCP="CL8MSWIN1251"
 
 LOGF="/tmp/tpilog_$$.txt"
 
@@ -320,7 +310,7 @@ SELECT  /*+ OPT_PARAM('_optimizer_adaptive_plans' 'false') */   /*+ NO_MONITOR *
        p.spid, s.sid, s.serial#, i.inst_id, $CON_ID /* i.host_name, */ /* s.audsid,*/ s.username,
        s.osuser,
        replace(s.machine,CHR(0),'') machine,
-       s.program||' / '||s.module||' / '|| $SQLACTION_
+       s.program||' / '||s.module||' / '|| s.action pma,
        trunc(p.pga_used_mem/1024/1024) pgau, $SQLCMD1_ $SQL_ID_
        w.event /*,w.p1text,w.p1,w.p2text,w.p2*/,
        case when w.seconds_in_wait>864000 then w.seconds_in_wait/60/60/24*-1 else w.seconds_in_wait end sw,
@@ -372,16 +362,13 @@ esac
 
 case "$(db_version)" in
  9|10) SQL_ID_=""
-    SQLACTION_="s.action pma,"
     SQLCMD1_=""
     SQLCMD2_=""
     SQLCMD3_=""
+    NLS_LANG=AMERICAN_AMERICA.UTF8
+    export NLS_LANG
     ;;
  *) SQL_ID_="DECODE (s.plsql_subprogram_id, NULL, s.sql_id, NULL) sql_id," 
-    case $(db_is_open) in
-      OPEN) SQLACTION_="CASE when '$NLS_VALUE'='$WINCP' then s.action when replace(REGEXP_REPLACE(convert(UNISTR(ASCIISTR(s.action)), '$NLS_VALUE','$WINCP'), '[-*\/_0-9a-zA-Z]', ''), ' ') is null then UTL_RAW.CAST_TO_VARCHAR2(UTL_RAW.CONVERT(UTL_RAW.CAST_TO_RAW(nvl(s.action,' ')),'AMERICAN_AMERICA.$NLS_VALUE', 'AMERICAN_AMERICA.$WINCP')) else s.action end pma," ;;
-         *) SQLACTION_=" s.action pma, " ;;
-    esac
     SQLCMD1_="c.command_name, "
     SQLCMD2_=", gv\$sqlcommand c "
     SQLCMD3_="and s.command = c.command_type and i.inst_id=c.inst_id "
@@ -1402,7 +1389,6 @@ ORDER BY to_date(begin_time,'dd/mm/yy-hh24:mi:ss');
 EOF
 ;;
 *)
-ACTION_=" CASE when '$NLS_VALUE'='$WINCP' then s.action when replace(REGEXP_REPLACE(convert(UNISTR(ASCIISTR(s.action)), '$NLS_VALUE','$WINCP'), '[-*\/_0-9a-zA-Z]', ''), ' ') is null then UTL_RAW.CAST_TO_VARCHAR2(UTL_RAW.CONVERT(UTL_RAW.CAST_TO_RAW(nvl(s.action,' ')),'AMERICAN_AMERICA.$NLS_VALUE', 'AMERICAN_AMERICA.$WINCP')) else s.action end "
 $SP <<EOF >$LOGF
 set lines 230 pages 100 numw 7 
 set echo off feed off veri off tab off timing off
@@ -1652,8 +1638,7 @@ ttitle left "Database active sessions:"
 --           substr(DECODE (p.pname, NULL, s.program, p.pname),1,22) prg4,
 --           substr(s.module,1,22) modl,
 --           substr(s.action,1,22) actn,
---!           substr(DECODE(p.pname, NULL, s.program, p.pname)||' / '||case when s.module<>p.pname then s.module else '' end ||' / '||s.action,1,60) pma,
-           substr(DECODE(p.pname, NULL, s.program, p.pname)||' / '||case when s.module<>p.pname then s.module else '' end ||' / '|| $ACTION_  ,1,60) pma,
+           substr(DECODE(p.pname, NULL, s.program, p.pname)||' / '||case when s.module<>p.pname then s.module else '' end ||' / '|| s.action,1,60) pma,
 --           substr(DECODE(p.pname, NULL, s.program, p.pname)||' / '||case when s.module<>p.pname then s.module else '' end ||' / '||convert(s.action, 'AL32UTF8','CL8MSWIN1251'),1,60) pma,
 --           substr(DECODE(p.pname, NULL, s.program, p.pname)||' / '||case when s.module<>p.pname then s.module else '' end ||' / '||regexp_replace(s.action, '[^[:print:]]', ''), 1, 60) pma,
            trunc(p.pga_used_mem/1024/1024) pgau,
@@ -1687,7 +1672,7 @@ ttitle left "Database active sessions:"
      LEFT OUTER JOIN v\$latchname n
        ON (s.p2 = n.latch#),
            (SELECT inst_id, MAX (pga_max_mem) pgax FROM gv\$process GROUP BY inst_id) x
-   WHERE   x.inst_id = s.inst_id AND  s.status <> 'INACTIVE' AND s.type <> 'BACKGROUND' and s.username IS NOT NULL  -- and s.wait_class <> 'Idle'
+   WHERE   x.inst_id = s.inst_id AND s.status <> 'INACTIVE' AND s.type <> 'BACKGROUND' and s.username IS NOT NULL  -- and s.wait_class <> 'Idle'
 ORDER BY lcet desc,  siw DESC;
 EOF
 ;;
@@ -9370,8 +9355,7 @@ if [ -n "$SID_" -a -n "$SERIAL_" -a -n "$LEVEL_" ]; then
 
  case "$(db_version)" in
   8|9|10)   CMD1_="select u_dump.value || '/' || db_name.value || '_ora_' || v\$process.spid||nvl2(v\$process.traceid, '_' || v\$process.traceid, null )||'.trc' \"Trace File\" from v\$system_parameter u_dump cross join   v\$system_parameter db_name cross join v\$process join v\$session on v\$process.addr = v\$session.paddr where u_dump.name in ('user_dump_dest','background_dump_dest') and  db_name.name = 'db_name' and v\$session.sid=$SID_;"  ;;
-  *)  #CMD1_="SELECT VALUE||'/'||'$ORACLE_SID'||'_ora_'||&&SPID||'.trc' \"Trace File\" FROM V\$DIAG_INFO WHERE NAME = 'Diag Trace';" 
-      CMD1_="select tracefile from v\$process where spid=&&SPID;" ;;
+  *)  CMD1_="select tracefile from v\$process where spid=&&SPID;" ;;
  esac
 
 $SP <<EOF >$LOGF
