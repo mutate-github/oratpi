@@ -2,7 +2,7 @@
 # echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 set -f
 shopt -s nocasematch 2>/dev/null
-TPIVER="22.01.26"
+TPIVER="01.01.26"
 
 _P1_="$1"
 if [[ $_P1_ =~ tpibase64 ]]; then
@@ -1876,6 +1876,7 @@ END
  SQL_TEXT="select dbid,name,to_char(created,'dd/mm/yyyy') created,log_mode, resetlogs_time,open_mode,database_role,current_scn,protection_level,switchover_status,force_logging,FLASHBACK_ON,supplemental_log_data_min,platform_name from v\$database;"
 SQL_TEXT12="prompt DBA_REGISTRY_SQLPATCH:
       col INSTALL_ID for 99
+      col PATCH_TYPE for a10
       col action for a10
       col action_time for a10
       col status for a9
@@ -1883,6 +1884,8 @@ SQL_TEXT12="prompt DBA_REGISTRY_SQLPATCH:
       col DESCRIPTION for a28
       col LOGFILE    for a27
       col RU_LOGFILE    for a27
+      col SOURCE_VERSION for a14
+      col TARGET_VERSION for a14
       col PATCH_DIRECTORY for a10 noprint
       col SOURCE_BUILD_DESCRIPTION for a15
       col TARGET_BUILD_DESCRIPTION for a15
@@ -1919,6 +1922,7 @@ column INST_ID for 999
 column instance_name for a15
 column host_name for a30
 column version for a10
+column version_full for a14
 column status for a10
 column ARCHIVER for a10
 column LOGINS for a10
@@ -5428,7 +5432,7 @@ col JOB_CLASS for a30
 col OPERATION for a10
 col STATUS for a10
 col USER_NAME for a20
-col ADDITIONAL_INFO for a50
+col ADDITIONAL_INFO for a60
 select LOG_ID,cast(LOG_DATE as date) LOG_DATE,OWNER,JOB_NAME,JOB_CLASS,OPERATION,STATUS,USER_NAME,ADDITIONAL_INFO from DBA_SCHEDULER_JOB_LOG 
 where job_name='$P2_' and LOG_DATE > sysdate - (1*(nvl('$P3_',24)/24)) order by LOG_DATE;
 EOF
@@ -5447,7 +5451,9 @@ col ERROR# for 9999999
 col ACTUAL_START_DATE for a19
 col RUN_DURATION for a20
 col errors for a40
-select owner, job_name, STATUS, SESSION_ID, SLAVE_PID, ERROR#, cast(ACTUAL_START_DATE as date) ACTUAL_START_DATE, RUN_DURATION, errors from dba_scheduler_job_run_details 
+col ADDITIONAL_INFO for a60
+--select owner, job_name, STATUS, SESSION_ID, SLAVE_PID, ERROR#, cast(ACTUAL_START_DATE as date) ACTUAL_START_DATE, RUN_DURATION, errors from dba_scheduler_job_run_details 
+select owner, job_name, STATUS, SESSION_ID, SLAVE_PID, ERROR#, cast(ACTUAL_START_DATE as date) ACTUAL_START_DATE, RUN_DURATION, ADDITIONAL_INFO from dba_scheduler_job_run_details 
 where job_name like '$P2_' and ACTUAL_START_DATE > sysdate - (1*(nvl('$P3_',24)/24)) 
 --and run_duration > interval '10' second
 order by ACTUAL_START_DATE;
