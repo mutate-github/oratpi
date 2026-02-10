@@ -13,6 +13,8 @@ mon_adrcial.sh   - мониторинг adrci событий
 mon_alert.sh     - мониторинг алерт лога
 mon_bck.sh       - мониторинг бекапов
 mon_db.sh        - мониторинг БД
+mon_tnslsnr.sh   - мониторинг listeners
+mon_url.sh       - мониторинг url
 mon_db_files.sh  - мониторинг количества файлов БД, приближающихся к лимиту db_files
 mon_disksp.sh    - мониторинг дискового пространства
 mon_fra.sh       - мониторинг FRA
@@ -22,12 +24,12 @@ mon_lock.sh      - мониторинг блокировок БД
 mon_pga.sh       - мониторинг PGA
 mon_ping.sh      - мониторинг доступности ping
 mon_reslim.sh    - мониторинг лимита ресурсов
-mon_resumab.sh   - мониторинг сессий в состоянии resumable
+mon_resumab.sh   - мониторинг наличия сессий в состоянии resumable
 mon_ssh.sh       - мониторинг доступности сервера по ssh
 mon_stb.sh       - мониторинг standby сервера
 mon_stb_se.sh    - мониторинг standby сервера в oracle standard edition
 mon_swap.sh      - мониторинг swap
-mon_sysm_se.sh   - сборка sysmetrics в oracle standard edition
+mon_sysm_se.sh   - сбор sysmetrics в oracle standard edition (для истории)
 mon_tbs.sh       - мониторинг табличных пространств
 mon_forlog.sh    - мониторинг включения force logging на archivelog \ open read write базах
 mon_aas.sh       - мониторинг % сессий от активных, испытывающих конкуренцию CONCUR COMMIT за последние 30 мин
@@ -35,19 +37,21 @@ mon_oratop.sh    - мониторинг IORL - IO Read single block latency за
 
 mon_all.sh       - общий скрипт, содержит в себе вызов всех или части имеющихся, запускается так:
 
+kill_sniped.sh   - скрипт для kill sniped\zombie сессий
+
 ./mon_all.sh my_client_name
 
 где "my_client_name" - это расширение конфига "mon.ini.any_client_name" из пункта 4.
 
 
-Чтобы работала отправка почты perl-скриптом "mmail" необходим модуль "Mail::Sender" который идет в комплекте, чтобы работало из терминала надо прописать путь до каталога модуля: 
-export PERL5LIB=/home/oracle/start/tpi:$PERL5LIB
 
-также есть скрипты для отправки через gmail yandex соответственно, авторизация прописывается в самих скриптах:
+также есть скрипты для отправки через gmail, yandex, свой корпоративный relay соответственно, авторизация прописывается в самих скриптах:
 tgmail
 tyandex
+mmail   - используется perl модуль Mail::Sender, который тоже присутствует в сборке (пропишите путь до него в переменной окружения PERL5LIB)
+export PERL5LIB=/home/oracle/start/tpi:$PERL5LIB
 
-Путь до скриптов надо прописать в PATH.
+Путь до скриптов тоже необходимо прописать в PATH.
 
 2. Скрипты резервирования БД
 
@@ -61,10 +65,10 @@ bck_db9i.sh      - резервирование БД версии 9i
 bck_logs9i.sh    - резервирование архивных логов версии 9i
 
 
-3. Конфиг установки окружения (профайла) .bash_profile .profile .ora_env  и т.п.
+3. set_env - Конфиг установки окружения (профайла) .bash_profile .profile .ora_env  и т.п.
 На серверах oracle, каждый админ настраивает переменные окружения как ему удобно. Поэтому мы для баз данных конфигурируем общий файл-конфиг профилей set_env, который использует один параметр "$sid"
 
-его содержимое, следует по аналогии сконфигурировать свои профили для ваших серверов:
+его содержимое, следует по аналогии сконфигурировать под свои профили для ваших серверов:
 
 $ cat set_env
 shopt -s nocasematch
@@ -109,6 +113,7 @@ host=mu
 # sshuser=-o User=tal
 # sudo=sudo -u oracle 2>/dev/null
 db=mprd
+url=https://localhost:8442/ords
 
 [md]
 # sshuser=-o User=tal
