@@ -15,6 +15,7 @@ mon_bck.sh       - мониторинг бекапов
 mon_db.sh        - мониторинг БД
 mon_tnslsnr.sh   - мониторинг listeners
 mon_url.sh       - мониторинг url
+mon_port.sh      - мониторинг доступности host:port
 mon_db_files.sh  - мониторинг количества файлов БД, приближающихся к лимиту db_files
 mon_disksp.sh    - мониторинг дискового пространства
 mon_fra.sh       - мониторинг FRA
