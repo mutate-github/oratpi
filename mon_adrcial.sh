@@ -68,23 +68,26 @@ EOF_CREATE_F1
 
 cat << 'EOF_CREATE_F2' >> $ONE_EXEC_F
 VALUEP=$(sqlplus -S '/ as sysdba' <<'END'
+whenever sqlerror exit 1;
 set lines 230 pagesize 0 feedback off verify off heading off echo off timing off
 select substr(platform_name,1,instr(platform_name,' ',1,1)) from v$database;
 END
-)
+) || VALUEP=''
 VALUEP=$(tr -d '\r' <<< $VALUEP)
 case $VALUEP in
   Microsoft*) SLASH='\' ;;
            *) SLASH='/' ;;
 esac
 PATH_TO_ALERT=$(sqlplus -S '/ as sysdba' <<EOS
+whenever sqlerror exit 1;
 set lines 250 pagesize 0 feedback off verify off heading off echo off timing off
 column value for a200
 select value || '$SLASH' || 'alert_$ORACLE_SID.log' from V\$DIAG_INFO where name='Diag Trace';
 EOS
-)
+) || PATH_TO_ALERT=''
 echo $PATH_TO_ALERT
 cd $(dirname $PATH_TO_ALERT)
+if command -v adrci ; then
 adrci_homes=( $(adrci exec="show homes" | egrep -e "rdbms.*${ORACLE_SID}" ))
 for adrci_home in ${adrci_homes[@]} ; do
 #  adrci exec="set home ${adrci_home}; show alert -p \\\"message_text like '%ORA-%' and originating_timestamp > systimestamp-1/24\\\"" -term
@@ -96,6 +99,7 @@ EXCLUDE_STR=$(echo $EXCLUDE | xargs -n1 echo | while read i; do echo "message_te
 cat << EOF_CREATE_F3 >> $ONE_EXEC_F
   adrci exec="set home \${adrci_home}; show alert -p \\\\\"message_text like '%ORA-%' and  $EXCLUDE_STR originating_timestamp > systimestamp-1/${PART_OF_DAY}\\\\\"" -term
 done
+fi # if command -v adrci
 EOF_CREATE_F3
 
 cat ${ONE_EXEC_F} | $SSHCMD $HOST "/bin/bash -s $DB" | egrep -va "ADR|[*].*" > $LOGFILE
@@ -112,4 +116,5 @@ rm $LOGHEAD $LOGFILE $ONE_EXEC_F
 
   done  # for DB
 done   # for HOST
+
 

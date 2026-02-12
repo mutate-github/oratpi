@@ -43,6 +43,9 @@ sleep 1
 echo "Monitor: ================================================================================ mon_url.sh "$(date)
 $BASEDIR/mon_url.sh $CLIENT >> $BASEDIR/../log/mon_url.sh.log 2>&1 &
 sleep 1
+echo "Monitor: ================================================================================ mon_port.sh "$(date)
+$BASEDIR/mon_port.sh $CLIENT >> $BASEDIR/../log/mon_port.sh.log 2>&1 &
+sleep 1
 echo "Monitor: ================================================================================ mon_fs.sh "$(date)
 $BASEDIR/mon_fs.sh $CLIENT >> $BASEDIR/../log/mon_fs.sh.log 2>&1 &
 sleep 1
@@ -92,7 +95,7 @@ echo "Monitor: =================================================================
 $BASEDIR/mon_bck.sh $CLIENT >> $BASEDIR/../log/mon_bck.sh.log 2>&1 &
 sleep 1
 echo "Monitor: ================================================================================ mon_db_files.sh "$(date)
-$BASEDIR/mon_db_files.sh $CLIENT >> $BASEDIR/../log/mon_files.sh.log 2>&1 &
+$BASEDIR/mon_db_files.sh $CLIENT >> $BASEDIR/../log/mon_db_files.sh.log 2>&1 &
 sleep 1
 echo "Monitor: ================================================================================ mon_reslim.sh "$(date)
 $BASEDIR/mon_reslim.sh $CLIENT >> $BASEDIR/../log/mon_reslim.sh.log 2>&1 &

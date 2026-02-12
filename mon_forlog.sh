@@ -38,22 +38,26 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   for DB in $(xargs -n1 echo <<< "$DBS"); do
     echo "DB="$DB
 
-VALUE=$(echo -e "#!/bin/bash
+FORCE_LOGGING=$(echo -e "#!/bin/bash
 sid=\$1
 # echo 'sid='\$sid
 $SET_ENV
 export ORACLE_SID=\$sid
-sqlplus -s '/ as sysdba' <<'END'
+INTVAL=\$(sqlplus -s '/ as sysdba' <<'END'
+whenever sqlerror exit 1;
 set pagesize 0 feedback off verify off heading off echo off timing off
 select force_logging from v\$database where exists (select 1 from v\$instance where ARCHIVER='STARTED' and OPEN_MODE='READ WRITE');
 END
+) || INTVAL=0
+echo \$INTVAL
 " | $SSHCMD $SSHUSER $HOST "$SUDO /bin/bash -s $DB" | tr -d '[[:cntrl:]]' | sed -e 's/^[ \t]*//')
 
-    echo "VALUE: "$VALUE
+    echo "FORCE_LOGGING: "$FORCE_LOGGING
 
-    if [[ "$VALUE" = "NO" ]]; then
+    if [[ "$FORCE_LOGGING" = "NO" ]]; then
       echo "" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "Warning: Force logging is not enabled"
     fi
   done # DB
 done # HOST
+
 

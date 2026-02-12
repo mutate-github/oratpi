@@ -53,22 +53,26 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     if [ "$skip_outer_loop_db" -eq 1 ]; then echo "SKIP and continue outher loop db!"; continue; fi
 #--- end skip for db
 
-VALUE=$(echo -e "#!/bin/bash
+DB_FILES=$(echo -e "#!/bin/bash
 sid=\$1
 # echo 'sid='\$sid
 $SET_ENV
 export ORACLE_SID=\$sid
-sqlplus -s '/ as sysdba' <<'END'
+INTVAL=\$(sqlplus -s '/ as sysdba' <<'END'
+whenever sqlerror exit 1;
 set pagesize 0 feedback off verify off heading off echo off timing off
 select trunc((select count(1) from v\$datafile)/value*100) from v\$parameter where NAME='db_files';
 END
+) || INTVAL=0
+echo \$INTVAL
 " | $SSHCMD $SSHUSER $HOST "$SUDO /bin/bash -s $DB" | tr -d '[[:cntrl:]]' | sed -e 's/^[ \t]*//')
 
-    echo "VALUE: "$VALUE
+    echo "DB_FILES: "$DB_FILES
 
-    if [[ "$VALUE" -gt "$DB_FILES_USAGE_LIMIT" ]]; then
-      echo "" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "db_files usage warning: (current: ${VALUE} %, threshold: ${DB_FILES_USAGE_LIMIT} %)"
+    if [[ "$DB_FILES" -gt "$DB_FILES_USAGE_LIMIT" ]]; then
+      echo "" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "db_files usage warning: (current: ${DB_FILES} %, threshold: ${DB_FILES_USAGE_LIMIT} %)"
     fi
   done # DB
 done # HOST
+
 

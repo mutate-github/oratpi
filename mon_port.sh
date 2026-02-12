@@ -21,15 +21,22 @@ echo "Using config: ${CONFIG}"
 
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
+WRTPI="$BASEDIR/rtpi"
 [[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
-  echo "HOST: "$HOST
+  echo "HOST="$HOST
   SSHUSER=$($BASEDIR/iniget.sh $CONFIG $HOST sshuser)
   SUDO=$($BASEDIR/iniget.sh $CONFIG $HOST sudo)
+  
+#  $BASEDIR/test_ssh.sh $CLIENT $HOST
+#  if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
+  PORTS=$($BASEDIR/iniget.sh $CONFIG $HOST port)
+  for PORT in $(xargs -n1 echo <<< "$PORTS"); do
+    echo "PORT="$PORT
 
 #-- skip for host
   skip_outer_loop=0
@@ -44,26 +51,25 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi
 #-- end skip for host
 
-  LOGF=$LOGDIR/mon_tnslsnr_${HOST}.log
-  LOGF_TNS_DIFF=$LOGDIR/mon_tnslsnr_${HOST}_diff.log
-  LOGF_TNS_OLD=$LOGDIR/mon_tnslsnr_${HOST}_old.log
-  touch $LOGF_TNS_OLD
+    LOGF=$LOGDIR/mon_port_${HOST}_${PORT}.log
 
-  $BASEDIR/test_ssh.sh $CLIENT $HOST
-  if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
-  OS=$($SSHCMD $HOST "uname")
-  $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
-    ps -eo 'user,args' | grep "/[t]nslsnr " | sort | uniq | sort -k2,2 -k3,3 -k4,4
+    printf "$PORT " > $LOGF
+    $SSHCMD $SSHUSER $HOST "$SUDO bash" <<-EOF >> $LOGF
+       perl -e 'use IO::Socket; \$SIG{ALRM}=sub{die}; alarm 3; \$s=IO::Socket::INET->new(PeerAddr=>"'$PORT'")?1:0; alarm 0; exit(\$s?0:1)' && echo OPEN || echo CLOSED
 EOF
-" > $LOGF
-  if [ -s $LOGF ]; then
-    diff $LOGF_TNS_OLD $LOGF > $LOGF_TNS_DIFF
 
-    if [ -s $LOGF_TNS_DIFF ]; then
-       cat $LOGF_TNS_DIFF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST NULL "TNS listener has been changed:"
+    LOGF_PORT_DIFF=$LOGDIR/mon_port_${HOST}_${PORT}_diff.log
+    LOGF_PORT_OLD=$LOGDIR/mon_port_${HOST}_${PORT}_old.log
+    touch $LOGF_PORT_OLD
+    diff $LOGF_PORT_OLD $LOGF > $LOGF_PORT_DIFF
+
+    if [ -s $LOGF_PORT_DIFF ]; then 
+	cat $LOGF
+        cat $LOGF_PORT_DIFF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $PORT "PORT status has been changed:"
     fi
-    cp $LOGF $LOGF_TNS_OLD
-    rm $LOGF_TNS_DIFF $LOGF
-  fi
+    cp $LOGF $LOGF_PORT_OLD
+    rm $LOGF_PORT_DIFF $LOGF
+  done
 done
+
 

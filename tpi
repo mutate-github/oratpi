@@ -2,7 +2,7 @@
 # echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 set -f
 shopt -s nocasematch 2>/dev/null
-TPIVER="01.01.26"
+TPIVER="12.02.26"
 
 _P1_="$1"
 if [[ $_P1_ =~ tpibase64 ]]; then
@@ -73,7 +73,7 @@ init_msg()
   pipe__="pipe [PIPE_NAME] - pipes information, read PIPE_NAME" 
   longops__="longops [SID | MESSAGE | rman] - active session longops for SID or MESSAGE or rman backup elapsed time" 
   scheduler__="${red}scheduler${reset} [JOB_NAME | run JOB_NAME [hours] | log JOB_NAME [hours] | autotask ] - dba_scheduler_jobs information, log | run JOB_NAME [hours] - dba_scheduler_job_log | dba_scheduler_job_run_details for JOB_NAME in last [hours]" 
-  job__="job [run] [JOB_ID|OWNER] - dba_jobs, dba_jobs_running information" 
+  job__="job [run] [JOB_ID|SID|SPID|OWNER] - dba_jobs, dba_jobs_running information" 
   rman__="rman [DAYS|dftb|cfg|last|arch [SEQUENCE] | recovery] - RMAN backups | df_to_backup | v\$rman_configuration information | last - hours passed since the last backup | arch - last backup archivelog"
   get_ddl__="get_ddl TYPE OBJECT (OWNER) - dbms_metadata.get_ddl extract dml, OBJECT - may be % or %mask%"
   trace__="trace [SID SERIAL LEVEL] [db {on|off}] - Trace for session, Level: 0-Disable, 1-Enable, 4-Enable with Binds, 8-Enable with Waits, 12-4+8, Trace all db sessions: on \ off"
@@ -4303,50 +4303,91 @@ free)
 $SP <<EOF >$LOGF
 set lines 230 pages 60
 set echo off feed off veri off tab off 
+column TABLESPACE_NAME for a30
 col "%_Free" for 9990.99
 col "%_Used" for 9990.99
-SELECT
-    a.tablespace_name AS "Tablespace_Name",
-    ROUND(a.maxbytes / 1024 / 1024) AS "MaxBytes_MB",
-    ROUND(a.bytes_alloc / 1024 / 1024) AS "Allocated_MB",
-    ROUND(NVL(b.bytes_free, 0) / 1024 / 1024) AS "Free_MB",
-    CASE WHEN ts.contents = 'UNDO' THEN ROUND((a.bytes_alloc - NVL(u.expired_bytes, 0)) / 1024 / 1024)
-                                   ELSE ROUND((a.maxbytes - NVL(b.bytes_free, 0)) / 1024 / 1024)
-    END AS "Used_MB",
-    CASE WHEN ts.contents = 'UNDO' THEN ROUND((NVL(b.bytes_free, 0) + NVL(u.expired_bytes, 0)) / a.maxbytes * 100, 2)
-                                   ELSE ROUND((NVL(b.bytes_free, 0) / a.maxbytes) * 100, 2)
-    END AS "%_Free",
-    CASE WHEN ts.contents = 'UNDO' THEN 100 - ROUND((NVL(b.bytes_free, 0) + NVL(u.expired_bytes, 0)) / a.maxbytes * 100, 2)
-                                   ELSE 100 - ROUND((NVL(b.bytes_free, 0) / a.maxbytes) * 100, 2)
-    END AS "%_Used"
-FROM (
-    SELECT f.tablespace_name, SUM(f.bytes) AS bytes_alloc, SUM(DECODE(f.autoextensible, 'YES', f.maxbytes, f.bytes)) AS maxbytes
-    FROM dba_data_files f
-    GROUP BY tablespace_name
-) a
-LEFT JOIN (
-    SELECT tablespace_name, SUM(free) AS bytes_free
-    FROM (
-        SELECT d.tablespace_name,
-            CASE WHEN d.autoextensible = 'YES' THEN (d.maxbytes - d.bytes) + NVL(f.bytes, 0)
-                                               ELSE NVL(f.bytes, 0)
-            END AS free
-        FROM dba_data_files d
-        LEFT JOIN (
-            SELECT tablespace_name, file_id, SUM(bytes) AS bytes
-            FROM dba_free_space
-            GROUP BY tablespace_name, file_id
-        ) f ON d.file_id = f.file_id
+WITH
+    files AS (
+        SELECT /*+ MATERIALIZE */
+            tablespace_name,
+            file_id,
+            autoextensible,
+            bytes,
+            maxbytes
+        FROM dba_data_files
+    ),
+    free_per_file AS (
+        SELECT /*+ MATERIALIZE */
+            tablespace_name,
+            file_id,
+            SUM(bytes) AS bytes
+        FROM dba_free_space
+        GROUP BY tablespace_name, file_id
+    ),
+    df_agg AS (
+        SELECT
+            tablespace_name,
+            SUM(bytes) AS bytes_alloc,
+            SUM(CASE WHEN autoextensible = 'YES' THEN maxbytes ELSE bytes END) AS maxbytes
+        FROM files
+        GROUP BY tablespace_name
+    ),
+    free_agg AS (
+        SELECT
+            f.tablespace_name,
+            SUM(
+                CASE
+                    WHEN f.autoextensible = 'YES'
+                        THEN (f.maxbytes - f.bytes) + NVL(fp.bytes, 0)
+                    ELSE NVL(fp.bytes, 0)
+                END
+            ) AS bytes_free
+        FROM files f
+        LEFT JOIN free_per_file fp
+            ON f.file_id = fp.file_id
+        GROUP BY f.tablespace_name
+    ),
+    undo_agg AS (
+        SELECT /*+ MATERIALIZE */
+            tablespace_name,
+            SUM(CASE WHEN status = 'EXPIRED' THEN bytes ELSE 0 END) AS expired_bytes
+        FROM dba_undo_extents
+        GROUP BY tablespace_name
+    ),
+    ts AS (
+        SELECT tablespace_name, contents
+        FROM dba_tablespaces
+        WHERE status = 'ONLINE'
     )
-    GROUP BY tablespace_name
-) b ON a.tablespace_name = b.tablespace_name
-LEFT JOIN (
-    SELECT tablespace_name, SUM(CASE WHEN status = 'EXPIRED' THEN bytes ELSE 0 END) AS expired_bytes
-    FROM dba_undo_extents
-    GROUP BY tablespace_name
-) u ON a.tablespace_name = u.tablespace_name
-JOIN dba_tablespaces ts ON a.tablespace_name = ts.tablespace_name
-WHERE ts.status = 'ONLINE'
+SELECT /*+ LEADING(ts df_agg free_agg undo_agg)
+          USE_HASH(df_agg) USE_HASH(free_agg) USE_HASH(undo_agg)
+          FULL(ts) */
+    df_agg.tablespace_name                                          AS "Tablespace_Name",
+    ROUND(df_agg.maxbytes / 1048576)                                AS "MaxBytes_MB",
+    ROUND(df_agg.bytes_alloc / 1048576)                            AS "Allocated_MB",
+    ROUND(NVL(free_agg.bytes_free, 0) / 1048576)                   AS "Free_MB",
+    CASE
+        WHEN ts.contents = 'UNDO'
+            THEN ROUND((df_agg.bytes_alloc - NVL(undo_agg.expired_bytes, 0)) / 1048576)
+        ELSE ROUND((df_agg.maxbytes - NVL(free_agg.bytes_free, 0)) / 1048576)
+    END                                                            AS "Used_MB",
+    CASE
+        WHEN ts.contents = 'UNDO'
+            THEN ROUND((NVL(free_agg.bytes_free, 0) + NVL(undo_agg.expired_bytes, 0)) / df_agg.maxbytes * 100, 2)
+        ELSE ROUND((NVL(free_agg.bytes_free, 0) / df_agg.maxbytes) * 100, 2)
+    END                                                            AS "%_Free",
+    CASE
+        WHEN ts.contents = 'UNDO'
+            THEN 100 - ROUND((NVL(free_agg.bytes_free, 0) + NVL(undo_agg.expired_bytes, 0)) / df_agg.maxbytes * 100, 2)
+        ELSE 100 - ROUND((NVL(free_agg.bytes_free, 0) / df_agg.maxbytes) * 100, 2)
+    END                                                            AS "%_Used"
+FROM ts
+JOIN df_agg
+    ON ts.tablespace_name = df_agg.tablespace_name
+LEFT JOIN free_agg
+    ON df_agg.tablespace_name = free_agg.tablespace_name
+LEFT JOIN undo_agg
+    ON df_agg.tablespace_name = undo_agg.tablespace_name
 union all
 SELECT f.tablespace_name,
   round(sum(f.total_bytes /(1024 * 1024))) total,
@@ -4495,6 +4536,7 @@ $SP <<'EOF' >$LOGF
 set lines 220
 set echo off feed off veri off tab off pages 70
 set numwidth 15
+column "ID#" format a3
 column "Total Bytes" format 9,999,999,999,999
 column "SQL Blocks" format 999,999,999,999
 column "VMS Blocks" format 999,999,999,999
@@ -4523,7 +4565,7 @@ select  substr(fs.FILE_ID,1,3) "ID#",
 from sys.dba_data_files df, sys.dba_free_space fs
 where df.file_id(+) = fs.file_id
 group by fs.FILE_ID, fs.tablespace_name, df.bytes, df.blocks
-order by fs.tablespace_name;
+order by fs.tablespace_name, fs.file_id;
 EOF
 ;;
 lastseg)
@@ -4585,7 +4627,11 @@ case $(db_is_open) in
  OPEN) SQL_="select ddf.tablespace_name,ddf.file_id,ddf.file_name,df.status,df.enabled, df.block_size, ddf.bytes, ddf.maxbytes, ddf.INCREMENT_BY*df.block_size INCREMENT_BY, ddf.autoextensible, df.CHECKPOINT_CHANGE# from v\$datafile df, dba_data_files ddf where ddf.file_id=df.file# order by ddf.tablespace_name,ddf.file_name;
 select ddf.tablespace_name,ddf.file_id,ddf.file_name,df.status,df.enabled, df.block_size, ddf.bytes, ddf.maxbytes, ddf.INCREMENT_BY*df.block_size INCREMENT_BY, ddf.autoextensible from v\$tempfile df, dba_temp_files ddf where ddf.file_id=df.file# order by ddf.tablespace_name,ddf.file_name;"
  ;;
- *) SQL_="select dfh.tablespace_name,dfh.file#,dfh.name,df.status,df.enabled, df.block_size, dfh.bytes, dfh.recover, dfh.CHECKPOINT_CHANGE# from v\$datafile df, V\$DATAFILE_HEADER dfh where dfh.file#=df.file# order by CHECKPOINT_CHANGE# /* dfh.tablespace_name,dfh.name */;"
+ *) SQL_="PROMPT SCN from V\$DATAFILE_HEADER:
+          select dfh.tablespace_name,dfh.file#,dfh.name,df.status,df.enabled, df.block_size, dfh.bytes, dfh.recover, dfh.CHECKPOINT_CHANGE# from v\$datafile df, V\$DATAFILE_HEADER dfh where dfh.file#=df.file# order by CHECKPOINT_CHANGE# /* dfh.tablespace_name,dfh.name */;
+          PROMPT
+          PROMPT SCN from controlfile V\$DATAFILE:
+          select file#,name, status, CHECKPOINT_CHANGE# from v\$datafile order by file#;"
  ;;
 esac
 $SP <<EOF >$LOGF
@@ -4603,7 +4649,7 @@ column enabled format a15
 column bytes format 99999999999
 column maxbytes format 99999999999
 column INCREMENT_BY format 999999999
-ttitle left "DataFiles information:"
+PROMPT DataFiles information:
 $SQL_
 EOF
 ;;
@@ -5450,9 +5496,7 @@ col SLAVE_PID for a10
 col ERROR# for 9999999
 col ACTUAL_START_DATE for a19
 col RUN_DURATION for a20
-col errors for a40
 col ADDITIONAL_INFO for a60
---select owner, job_name, STATUS, SESSION_ID, SLAVE_PID, ERROR#, cast(ACTUAL_START_DATE as date) ACTUAL_START_DATE, RUN_DURATION, errors from dba_scheduler_job_run_details 
 select owner, job_name, STATUS, SESSION_ID, SLAVE_PID, ERROR#, cast(ACTUAL_START_DATE as date) ACTUAL_START_DATE, RUN_DURATION, ADDITIONAL_INFO from dba_scheduler_job_run_details 
 where job_name like '$P2_' and ACTUAL_START_DATE > sysdate - (1*(nvl('$P3_',24)/24)) 
 --and run_duration > interval '10' second
@@ -5523,7 +5567,7 @@ case ${P1_} in
   run) shift ; P1_=$1
      case "$(is_number $P1_)" in
         0) SQL_TEXT1_="and d_j.LOG_USER like upper('${P1_}%')" ;;
-        1) SQL_TEXT1_="and d_j.JOB = '${P1_}'" ;;
+	1) SQL_TEXT1_="and (d_j.JOB='${P1_}' or p.spid='${P1_}' or s.sid='${P1_}')" ;;
      esac
 $SP <<EOF >$LOGF
   set lines 250 echo off feed off veri off tab off pages 40
@@ -5536,7 +5580,7 @@ $SP <<EOF >$LOGF
   col schemaname for a15
   col log_user for a15
   col program for a20
-  col what for a40
+  col what for a75
   col logon_time  for a10
   select /*+ rule */ 'kill -9 '||p.spid spid, d_j.job, s.sid, s.serial#, p.program,  s.username,  s.schemaname, d_j.log_user, d_j.what, s.logon_time, d_j.next_date
     from v\$process p, v\$session s, dba_jobs_running j, dba_jobs d_j where p.addr = s.paddr and j.sid=s.sid and d_j.job(+)=j.job $SQL_TEXT1_ ;

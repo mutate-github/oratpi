@@ -23,12 +23,15 @@ LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 WRTPI="$BASEDIR/rtpi"
 [[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
+SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 TIMEOUT=10
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST="$HOST
+  SSHUSER=$($BASEDIR/iniget.sh $CONFIG $HOST sshuser)
+  SUDO=$($BASEDIR/iniget.sh $CONFIG $HOST sudo)
   
 #  $BASEDIR/test_ssh.sh $CLIENT $HOST
 #  if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
@@ -49,31 +52,39 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ "$skip_outer_loop" -eq 1 ]; then echo "SKIP and continue outher loop!"; continue; fi
 #-- end skip for host
 
-    LOGF=$LOGDIR/mon_url_${HOST}.log
-#    $WRTPI $HOST $URL db | sed -n '/V$INSTANCE:/{p;n;p;n;n;p;}' > $LOGF
+  LOGF=$LOGDIR/mon_url_${HOST}.log
 
+  printf "$URL " > $LOGF
+  $SSHCMD $SSHUSER $HOST "$SUDO bash" <<-EOF >> $LOGF
     if ! command -v curl &> /dev/null
       then
-        HTTP_CODE=$(wget -qS -O /dev/null --timeout=$TIMEOUT --no-check-certificate "$URL" 2>&1 | grep "HTTP/" | tail -1 | awk '{print $2}')
+        HTTP_CODE=\$(wget -qS -O /dev/null --timeout=$TIMEOUT --no-check-certificate "$URL" 2>&1 | grep "HTTP/" | tail -1 | awk '{print \$2}')
       else
-        HTTP_CODE=$(curl -skf --max-time $TIMEOUT -o /dev/null -w "%{http_code}" "$URL")
+        HTTP_CODE=\$(curl -skf --max-time $TIMEOUT -o /dev/null -w "%{http_code}" "$URL")
     fi
 
-
-    if [[ "$HTTP_CODE" =~ ^2[0-9][0-9]$ || "$HTTP_CODE" == "302" ]]; then
-        echo "YES: ALIVE! (HTTP: $HTTP_CODE)" > $LOGF
-    elif [[ "$HTTP_CODE" == "000" ]]; then
-        echo "NO: DEAD! Timeout or NOT Answer. HTTP: $HTTP_CODE" > $LOGF
+    if [[ "\$HTTP_CODE" =~ ^2[0-9][0-9]$ || "\$HTTP_CODE" == "302" ]]; then
+        echo "YES: ALIVE! (HTTP: \$HTTP_CODE)"
+    elif [[ "\$HTTP_CODE" == "000" ]]; then
+        echo "NO: DEAD! Timeout or NOT Answer. HTTP: \$HTTP_CODE"
     else
-        echo "UNKNOWN: returned HTTP: $HTTP_CODE" > $LOGF
+        echo "UNKNOWN: returned HTTP: \$HTTP_CODE"
     fi
+EOF
 
-    LOGF_URL_DIFF=$LOGDIR/mon_url_${HOST}_url_diff.log
-    LOGF_URL_OLD=$LOGDIR/mon_url_${HOST}_url_old.log
+    # get clean string "IP:PORT"
+    HOSTPORT="${URL#*://}"
+    HOSTPORT="${HOSTPORT%%/*}"
+#    echo "HOSTPORT: "$HOSTPORT
+
+
+    LOGF_URL_DIFF=$LOGDIR/mon_url_${HOST}_${HOSTPORT}_diff.log
+    LOGF_URL_OLD=$LOGDIR/mon_url_${HOST}_${HOSTPORT}_old.log
     touch $LOGF_URL_OLD
     diff $LOGF_URL_OLD $LOGF > $LOGF_URL_DIFF
 
     if [ -s $LOGF_URL_DIFF ]; then 
+	cat $LOGF
         cat $LOGF_URL_DIFF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $URL "URL status has been changed:"
     fi
     cp $LOGF $LOGF_URL_OLD

@@ -55,14 +55,15 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     if [ "$skip_outer_loop_db" -eq 1 ]; then echo "SKIP and continue outher loop db!"; continue; fi
 #--- end skip for db
 
-#    VALUE=$($WRTPI $HOST $DB pga usage |  awk '/PGA_USAGE/{f=1;getline;getline}f' | head -1)
+#    PGA_USAGE=$($WRTPI $HOST $DB pga usage |  awk '/PGA_USAGE/{f=1;getline;getline}f' | head -1)
 
-VALUE=$(echo -e "#!/bin/bash
+PGA_USAGE=$(echo -e "#!/bin/bash
 sid=\$1
 # echo 'sid='\$sid
 $SET_ENV
 export ORACLE_SID=\$sid
-sqlplus -s '/ as sysdba' <<'END'
+INTVAL=\$(sqlplus -s '/ as sysdba' <<'END'
+whenever sqlerror exit 1;
 set pagesize 0 feedback off verify off heading off echo off timing off
 col pga_usage for 999
 SELECT
@@ -78,13 +79,16 @@ FROM v\$database d
 LEFT JOIN v\$parameter p ON p.name = 'memory_target'
 WHERE d.database_role = 'PRIMARY';
 END
+) || INTVAL=0
+echo \$INTVAL
 " | $SSHCMD $SSHUSER $HOST "$SUDO /bin/bash -s $DB" | tr -d '[[:cntrl:]]' | sed -e 's/^[ \t]*//')
 
-    echo "VALUE: "$VALUE
+    echo "PGA_USAGE: "$PGA_USAGE
 
-    if [[ "$VALUE" -gt "$PGA_USAGE_LIMIT" ]]; then
-      echo "" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "PGA usage warning: (current: ${VALUE} %, threshold: ${PGA_USAGE_LIMIT} %)"
+    if [[ "$PGA_USAGE" -gt "$PGA_USAGE_LIMIT" ]]; then
+      echo "" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "PGA usage warning: (current: ${PGA_USAGE} %, threshold: ${PGA_USAGE_LIMIT} %)"
     fi
   done # DB
 done # HOST
+
 

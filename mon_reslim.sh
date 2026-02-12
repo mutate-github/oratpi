@@ -51,16 +51,23 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 #--- end skip for db
    
     ALLRL=$($WRTPI $HOST $DB resource_limit | awk '/RESOURCE_NAME/{f=1;getline;getline}f')
-    echo $ALLRL | xargs -n4 echo | while read RESOURCE_NAME CURRENT_UTILIZATION LIMIT_VALUE PERCENT; do
-#RESOURCE_NAME                            CURRENT_UTILIZATION LIMIT_VALUE     PERCENT
-#---------------------------------------- ------------------- --------------- -------
-#processes                                               1495      15000            9
-    PERLIM=$($BASEDIR/iniget.sh $CONFIG threshold $RESOURCE_NAME)
+    echo $ALLRL | xargs -n5 echo | while read INST_ID RESOURCE_NAME CURRENT_UTILIZATION LIMIT_VALUE PERCENT; do
+#   INST_ID RESOURCE_NAME                            CURRENT_UTILIZATION LIMIT_VALUE     PERCENT
+#---------- ---------------------------------------- ------------------- --------------- -------
+#         1 processes                                                 36       5500            0
+#         1 sessions                                                  35       6055            0
 
-    if [[ -n "$PERLIM" && "$PERCENT" -gt "$PERLIM" ]]; then
-      echo "" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "$RESOURCE_NAME limit % warning: (current: $CURRENT_UTILIZATION, limit: $LIMIT_VALUE, threshold: $PERLIM % , now: $PERCENT %)"
+    if [[ -n "$RESOURCE_NAME" ]]; then
+      PERLIM=$($BASEDIR/iniget.sh $CONFIG threshold $RESOURCE_NAME)
+      echo "PERLIM: "$PERLIM
+      echo "PERCENT: "$PERCENT
+
+      if [[ -n "$PERLIM" && "$PERCENT" -gt "$PERLIM" ]]; then
+        echo "" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "$RESOURCE_NAME limit % warning: (current: $CURRENT_UTILIZATION, limit: $LIMIT_VALUE, threshold: $PERLIM % , now: $PERCENT %)"
+      fi
     fi
     done
   done # DB
 done # HOST
+
 
