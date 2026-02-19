@@ -31,6 +31,7 @@ MPREFIX=$($BASEDIR/iniget.sh $CONFIG mail prefix)
 ADMINS=$($BASEDIR/iniget.sh $CONFIG admins email)
 MMHOSTS=$($BASEDIR/iniget.sh $CONFIG mail host:db:set)
 TGHOSTS=$($BASEDIR/iniget.sh $CONFIG telegram host:db:set)
+MAXHOSTS=$($BASEDIR/iniget.sh $CONFIG max host:db:set)
 # NAME_PARENT=$(awk -F/ '{print $NF}' /proc/"$PPID"/cmdline)  # old old linux
 # NAME_PARENT=$(awk -F/ '{print $NF}' /proc/"$PPID"/comm)     # old linux
 echo "send_msg.sh NAME_PARENT: "$NAME_PARENT
@@ -62,6 +63,22 @@ case "$NAME_PARENT" in
 esac
 }
 
+
+send_max()
+{ printf %s "send_max_MSG: $msg" | head -15; printf %s "$msg" | head -15 | $BASEDIR/mmax.sh $CONFIG $MPREFIX $HOST $DB $ALL ; }
+
+check_script_and_send_max()
+{
+echo "send_msg.sh check_script_and_send_max NAME_PARENT: "$NAME_PARENT
+echo "send_msg.sh check_script_and_send_max SCRIPTS: "$SCRIPTS
+case "$NAME_PARENT" in
+  ${SCRIPTS})   send_max ;;
+           *)   if ( grep -q "%" <<< "$SCRIPTS" ); then echo "MAX ALL SCRIPTS! "; send_max ; fi  ;;
+esac
+}
+
+
+
 # send msg to email
 # printf %s "$msg" | $WMMAIL -s "$MPREFIX ${HOST}/${DB} ${ALL}" $ADMINS
 for HDS in $(xargs -n1 echo <<< $MMHOSTS); do
@@ -87,6 +104,8 @@ for HDS in $(xargs -n1 echo <<< $MMHOSTS); do
   fi
 done
 
+
+
 # send msg to telegram bot
 # printf %s "$msg" | $BASEDIR/ttlgrm_bot.sh $CONFIG $MPREFIX $HOST $DB $ALL
 for HDS in $(xargs -n1 echo <<< $TGHOSTS); do
@@ -106,6 +125,31 @@ for HDS in $(xargs -n1 echo <<< $TGHOSTS); do
                   esac
                   ;;
        '%')       echo "TG ALL HOSTS! "; check_script_and_send_tlgrm ; break ;;
+    esac
+  fi
+done
+
+
+
+# send msg to MAX chat
+# printf %s "$msg" | $BASEDIR/mmax.sh $CONFIG $MPREFIX $HOST $DB $ALL
+for HDS in $(xargs -n1 echo <<< $MAXHOSTS); do
+#alpha:aisutf:%
+#beta:aisutf:mon_db.sh:mon_alert.sh:mon_disksp.sh
+  PHOST=$(awk -F: '{print $1}' <<< $HDS)
+  PDB=$(awk -F: '{print $2}' <<< $HDS)
+  SCRIPTS=$(cut -d':' -f3- <<< $HDS)
+  SCRIPTS='+('$(sed 's/:/|/g' <<< $SCRIPTS)')'
+  if [ "$PHOST" = "$HOST" -o "$PHOST" = "%" ]; then
+    echo "BINGO: is my host in regestry MAX: "$HOST
+    shopt -s extglob
+    case "$PHOST" in
+       "$HOST")   case "$PDB" in
+                    "$DB")   echo "MAX DB: "$DB ; check_script_and_send_max ; break ;;
+                    *)    echo "MAX ALL DATABASES! " ; check_script_and_send_max ;;
+                  esac
+                  ;;
+       '%')       echo "MAX ALL HOSTS! "; check_script_and_send_max ; break ;;
     esac
   fi
 done
