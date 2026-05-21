@@ -53,7 +53,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   OS=$($SSHCMD $HOST "uname")
   $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
-    ps -eo 'user,args' | grep "/[t]nslsnr " | sort | uniq | sort -k2,2 -k3,3 -k4,4
+    ps -eo 'user,args' | grep "/bin/[t]nslsnr " | grep -v zabbix | sort | uniq | sort -k2,2 -k3,3 -k4,4
 EOF
 " > $LOGF
   if [ -s $LOGF ]; then

@@ -91,6 +91,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     if [ "$VALUE" -gt "$AAS_COMMIT_LIMIT" ]; then
       cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "COMMIT % Warning in last 30 min, current: $VALUE, threshold: $AAS_COMMIT_LIMIT"
     fi
+    rm $LOGF
   done
 done
 

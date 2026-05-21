@@ -29,7 +29,7 @@ export NLS_LANG=AMERICAN_AMERICA.CL8MSWIN1251
 LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 WRTPI="$BASEDIR/rtpi"
-LINES=$($BASEDIR/iniget.sh $CONFIG alert lines)
+ALERT_LINES=$($BASEDIR/iniget.sh $CONFIG alert lines)
 EXCLUDE=$($BASEDIR/iniget.sh $CONFIG alert exclude)
 [[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
@@ -65,10 +65,19 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     $BASEDIR/iniget.sh $CONFIG alert:${HOST}:${DB} exclude >> $EXCLFILE
     AWKFILE=$LOGDIR/mon_alert_${HOST}_${DB}_awkfile.awk
 
-    $WRTPI $HOST $DB alert $LINES | sed -n '/DB=/,$p' > $LOGF
+    $WRTPI $HOST $DB alert ${ALERT_LINES} | sed -n '/DB=/,$p' > $LOGF
+    sed -i '1d' $LOGF
+    NLS_CHARACTERSET=$(head -1 $LOGF)
     sed -i '1d' $LOGF
     head -1 $LOGF > $LOGF_HEAD
     sed -i '1d' $LOGF
+
+    case "$NLS_CHARACTERSET" in 
+      RU8PC866)      iconv -f cp866 -t utf-8 $LOGF > ${LOGF}_iconv.tmp && mv ${LOGF}_iconv.tmp $LOGF ;;
+      CL8MSWIN1251)  iconv -f cp1251 -t utf-8 $LOGF > ${LOGF}_iconv.tmp && mv ${LOGF}_iconv.tmp $LOGF ;;
+      CL8ISO8859P5)  iconv -f ISO-8859-5 -t utf-8 $LOGF > ${LOGF}_iconv.tmp && mv ${LOGF}_iconv.tmp $LOGF ;;
+      *)             : ;;
+    esac
 
 cat > $AWKFILE <<!EOF
 BEGIN {
@@ -101,7 +110,13 @@ BEGIN {
           olddate = dtconv(\$3, \$2, \$5, \$4);
           continue;
         }
-        OLDLINE = sprintf("%s<BR>%s",OLDLINE,\$0);
+#         OLDLINE = sprintf("%s<BR>%s",OLDLINE,\$0); # old line, comment after meet limit 8192 bytes
+         if (length(OLDLINE) + length(\$0) > 8000)  #  remember only first 8Kb
+         { }
+         else
+         {
+           OLDLINE = sprintf("%s<BR>%s", OLDLINE, \$0);
+         }
         if ( \$0 ~ /ORA-/ || /[Ff]uzzy/ )
           { # extract the error
             errloc=index(\$0,"ORA-")
@@ -150,7 +165,7 @@ if [ "$ERRCT" -gt 1 ]; then
  cat $LOGF_HEAD | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "ALERT_LOG warning:"
 fi
 
-#rm $LOGF $LOGF_HEAD $EXCLFILE $AWKFILE
+rm $LOGF $LOGF_HEAD $EXCLFILE $AWKFILE
 # rm $LASTALERTTIME
 
   done    # DB

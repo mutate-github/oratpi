@@ -64,7 +64,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 	" > $LOGF
         ;;
     SunOS) $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
-	   df -k | awk '{print \$1\" \"\$6}'
+	   df -k | awk '{if (NF==1) {getline next_line; print \$0, next_line} else print \$0}' | awk '{print \$1\" \"\$6}'
 	EOF
 	" > $LOGF
         ;;

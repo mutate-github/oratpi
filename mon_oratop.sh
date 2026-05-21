@@ -96,6 +96,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     if [[ "$VAL_2HALFAV" -gt "$X_1HALFAV" && "$DIFF_2HALF_1HALF" -gt "$VAL_DBTMAV" && "$VAL_1HALFAV" -gt 60 ]]; then
       cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "DBTM Warning in last 30 min: last 15min: $VAL_2HALFAV * $ORATOP_DBTM_X are bigger than first 15min: $VAL_1HALFAV"
     fi
+    rm $LOGF $LOGF.cut.log
   done
 done
 

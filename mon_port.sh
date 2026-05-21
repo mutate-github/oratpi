@@ -55,7 +55,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 
     printf "$PORT " > $LOGF
     $SSHCMD $SSHUSER $HOST "$SUDO bash" <<-EOF >> $LOGF
-       perl -e 'use IO::Socket; \$SIG{ALRM}=sub{die}; alarm 3; \$s=IO::Socket::INET->new(PeerAddr=>"'$PORT'")?1:0; alarm 0; exit(\$s?0:1)' && echo OPEN || echo CLOSED
+       perl -e 'use IO::Socket; \$SIG{ALRM}=sub{die}; alarm 5; \$s=IO::Socket::INET->new(PeerAddr=>"'$PORT'")?1:0; alarm 0; exit(\$s?0:1)' && echo OPEN || echo CLOSED
 EOF
 
     LOGF_PORT_DIFF=$LOGDIR/mon_port_${HOST}_${PORT}_diff.log

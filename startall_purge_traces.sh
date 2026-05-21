@@ -64,9 +64,10 @@ export ORACLE_SID=\$sid
 
 VALUE=\$(sqlplus -s '/as sysdba' <<'EOS'
 set lines 250  heading off feedback off pagesize 0 trimspool on timing off
+whenever sqlerror exit 1;
 select value from v\$system_parameter where name='diagnostic_dest';
 EOS
-)
+) || VALUE=''
 
 echo "diagnostic_dest: "\$VALUE
 cd \$VALUE
@@ -95,12 +96,13 @@ for tns3_ in \$(echo \$tns3 | xargs); do
   adrci exec="set home \$tns3_ ; migrate schema"
   adrci exec="set home \$tns3_ ; purge -age \$age -type ALERT"
   adrci exec="set home \$tns3_ ; purge -age \$age -type TRACE"
-  find \$VALUE/\$tns3_/trace -type f -name "*lsn*.log" -size +\$size_lim
-  find \$VALUE/\$tns3_/trace -type f -name "*lsn*.log" -size +\$size_lim -exec cp /dev/null {} \;
+  find \$VALUE/\$tns3_/trace -type f -name "*.log" -size +\$size_lim
+  find \$VALUE/\$tns3_/trace -type f -name "*.log" -size +\$size_lim -exec cp /dev/null {} \;
 done
 
 echo "BEGIN purge non-standard listener:"
-echo find "\$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name '*.'"
+echo find "\$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name '*.log'"
+find \$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name "*.log" -size +\$size_lim
 find \$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name "*.log" -size +\$size_lim  -exec cp /dev/null {} \;
 find \$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name "*.*" -mtime +\$audit  -exec rm {} \; 
 echo "END purge non-standard listener"
@@ -111,12 +113,17 @@ find \$VALUE/diag/rdbms -type f -name "*rfs*.tr[cm]" -size +\$size_lim  -exec cp
 
 VALUE=\$(sqlplus -S '/ as sysdba' <<'END'
   set pagesize 0 feedback off verify off heading off echo off timing off
+  whenever sqlerror exit 1;
   col value for a200
-  select value from v\$parameter where name='audit_file_dest';
+  select replace(value,'?','\$ORACLE_HOME') from v\$parameter where name='audit_file_dest';
 END
-)
+) || VALUE=''
 
+VALUE=\$(eval echo \$VALUE)
 echo "purge audit logs for \$VALUE :"
+# ?/rdbms/audit -> \$ORACLE_HOME/rdbms/audit
+# find \$ORACLE_HOME/rdbms/audit -type f -mtime +\$audit -name "*.aud" -exec rm {} \;
+find \$ORACLE_BASE/admin/\$ORACLE_SID/adump -type f -mtime +\$audit -name "*.aud" -exec rm {} \;
 case \$(uname | awk -F_ '{print \$1}') in
   Linux)   find \$VALUE  -type f -mtime +\$audit -name "*.aud" | xargs -i -P20 rm {} ;;
   *)       find \$VALUE  -type f -mtime +\$audit -name "*.aud" -exec rm {} \; ;;

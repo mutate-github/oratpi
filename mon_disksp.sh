@@ -50,58 +50,35 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 #-- end skip for host
 
   LOGF=$LOGDIR/mon_diskspace_${HOST}.log
-  LOGF_HEAD=$LOGDIR/mon_diskspace_${HOST}_head.log
+  LOGF2=$LOGDIR/mon_diskspace_${HOST}_above_limit.log
   $BASEDIR/test_ssh.sh $CLIENT $HOST
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   OS=$($SSHCMD $HOST "uname")
   case "$OS" in
    Linux) # $SSHCMD $SSHUSER $HOST "$SUDO ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1; echo ""; df -kP -x squashfs" > $LOGF
-          $SSHCMD $SSHUSER $HOST "$SUDO <<-'EOF'
-	  [[ -s /sbin/ifconfig ]]
-	  if [ "\$?" -eq 0 ]; then 
-	    /sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1; else ip a | awk '/inet .*brd/{print \$2}' | grep -v 127.0.0.1
-	  fi
-	  echo ""
+          $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
+#	  [[ -s /sbin/ifconfig ]] && /sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1; else ip a | awk '/inet .*brd/{print \$2}' | grep -v 127.0.0.1
 	  df -kP -x squashfs
-	EOF
-        " > $LOGF
-          PCT_=$(cat $LOGF | grep -v "/mnt" | awk '/\/.*/{print $5" "int($4/1024/1024)}' | sed -e 's/%//' | sort -rn | head -1)
-          PCT=$(echo "$PCT_" | cut -d " " -f 1)
-          FS_=$(echo $PCT_ | cut -d " " -f 2)
+EOF
+" > $LOGF
           ;;
-   AIX)   $SSHCMD $SSHUSER $HOST "$SUDO <<-'EOF'
-	  /usr/sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1
-	  echo ""
-	  df -k
-	EOF
-        " > $LOGF
-#          cat $LOGF
-          PCT_=$(cat $LOGF | egrep -v "-" | awk '/\/.*/{print $4" "int($3/1024/1024)}' | sed -e 's/%//' | sort -rn | head -1)
-          PCT=$(echo "$PCT_" | cut -d " " -f 1)
-          FS_=$(echo $PCT_ | cut -d " " -f 2)
+   AIX)   $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
+#	  [[ -s /usr/sbin/ifconfig ]] && /usr/sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1
+	  df -kP
+EOF
+" > $LOGF
           ;;
-   SunOS)
-          $SSHCMD $SSHUSER $HOST "$SUDO <<-'EOF'
-	  [[ -s /usr/sbin/ifconfig ]]
-	  if [ "\$?" -eq 0 ]; then 
-            /usr/sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1 | grep -v 0.0.0.0 
-	  fi
-	  echo ""
-	  df -k
-	EOF
-        " > $LOGF
-          PCT_=$(cat $LOGF | grep -v "/mnt" | awk '/\/.*/{print $5" "int($4/1024/1024)}' | sed -e 's/%//' | sort -rn | head -1)
-          PCT=$(echo "$PCT_" | cut -d " " -f 1)
-          FS_=$(echo $PCT_ | cut -d " " -f 2)
+   SunOS) $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
+#	  [[ -s /usr/sbin/ifconfig ]] && /usr/sbin/ifconfig -a | awk '/inet .*ask/{print \$2}' | grep -v 127.0.0.1 | grep -v 0.0.0.0 
+	  df -k | awk '{if (NF==1) {getline next_line; print \$0, next_line} else print \$0}'
+EOF
+" > $LOGF
           ;;
   esac
-  if [ -s $LOGF ]; then
-    if [ "$PCT" -gt "$limPER" -a "$FS_" -lt "$limGB" ]; then
-      echo -e "Fired: "$0"\n" > $LOGF_HEAD
-      cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST NULL "DISKSPACE usage warning: (current: ${PCT} %, threshold: ${limPER} % and below ${limGB} Gb)"
-      rm $LOGF_HEAD
-    fi
-    rm $LOGF
+  awk -v limPER="$limPER" -v limGB="$limGB" 'NR>1 && $5 ~ /%$/ && $5+0 > limPER && $4 < limGB*1024*1024 {printf "%s %d %s %s\n", $5, $4, $1, $NF}' $LOGF > $LOGF2
+  if [ -s $LOGF2 ]; then
+     cat $LOGF2 | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST NULL "DISKSPACE usage warning: (threshold: ${limPER} % and below ${limGB} Gb)"
   fi
+  rm -f $LOGF $LOGF2
 done
 

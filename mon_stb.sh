@@ -39,8 +39,20 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "DBS="$DBS
   for DB in $(xargs -n1 echo <<< "$DBS"); do
     echo "DB="$DB
+    LOG_FILE0=$LOGDIR/mon_stb_${HOST}_${DB}_$$.log
+    $WRTPI $HOST $DB arch > $LOG_FILE0
+
+    LOG_FILE1=$LOGDIR/mon_stb_${HOST}_${DB}_arch_dest_status_$$.log
+    cat $LOG_FILE0 | awk '/ID SEQUENCE STATUS/,/^ *$/' | awk '! /^$/ && /^ +[0-9]+ .*/'  | awk '$3!~/VALID|DEFERRED/{print}' > $LOG_FILE1
+    if [ -s $LOG_FILE1 ]; then
+      cat $LOG_FILE1 | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "- ARCHIVELOG STATUS: $(date +%H:%M:%S-%d/%m/%y) for dest_id: ${DEST_ID}"
+      echo "ARCHIVELOG STATUS warning on host: ${HOST}   database: ${DB}   dest_id: ${DEST_ID}"
+    fi
+    rm $LOG_FILE1
+
     LOG_FILE=$LOGDIR/mon_stb_${HOST}_${DB}_${DEST_ID}_$$.log
-    $WRTPI $HOST $DB arch | awk '/LAG_MINUTES/,/^ *$/'  > $LOG_FILE
+    awk '/LAG_MINUTES/,/^ *$/' $LOG_FILE0 > $LOG_FILE
+    rm $LOG_FILE0
     awk '!/LAG_MINUTES/ && !/--------/ && !/^ *$/{print $2" "$(NF-1)" "$NF}' $LOG_FILE | while read DEST_ID SEQ_GAP_NOW LAG_MINUTES_NOW; do
       TRG_FILE_SEQ_GAP=$LOGDIR/mon_stb_${HOST}_${DB}_${DEST_ID}_trgfile_seq_gap.log
       TRG_FILE_LAG_MINUTES=$LOGDIR/mon_stb_${HOST}_${DB}_${DEST_ID}_trgfile_lag_minutes.log

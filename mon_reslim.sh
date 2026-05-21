@@ -27,6 +27,11 @@ SET_ENV_F="$BASEDIR/set_env"
 SET_ENV=$(<$SET_ENV_F)
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 
+declare -A ARR
+while IFS='=' read -r key value; do
+    [[ -n "$key" && "$key" != "$value" ]] && ARR["$key"]="$value"
+done < <($BASEDIR/iniget.sh $CONFIG threshold)
+
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
   echo "HOST="$HOST
@@ -53,20 +58,24 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     ALLRL=$($WRTPI $HOST $DB resource_limit | awk '/RESOURCE_NAME/{f=1;getline;getline}f')
     echo $ALLRL | xargs -n5 echo | while read INST_ID RESOURCE_NAME CURRENT_UTILIZATION LIMIT_VALUE PERCENT; do
 #   INST_ID RESOURCE_NAME                            CURRENT_UTILIZATION LIMIT_VALUE     PERCENT
-#---------- ---------------------------------------- ------------------- --------------- -------
+##---------- ---------------------------------------- ------------------- --------------- -------
 #         1 processes                                                 36       5500            0
 #         1 sessions                                                  35       6055            0
 
     if [[ -n "$RESOURCE_NAME" ]]; then
-      PERLIM=$($BASEDIR/iniget.sh $CONFIG threshold $RESOURCE_NAME)
-      printf "%-15s %-24s %-8s %-4s %-8s %-4s \n" "RESOURCE_NAME:" "$RESOURCE_NAME" "PERLIM:" "$PERLIM" "PERCENT:" "$PERCENT"
+#       PERLIM=$($BASEDIR/iniget.sh $CONFIG threshold $RESOURCE_NAME)
+       if [[ -n ARR[${RESOURCE_NAME}]+x ]]; then
+#          echo "${RESOURCE_NAME}: ${ARR[${RESOURCE_NAME}]}"
+          PERLIM=${ARR[${RESOURCE_NAME}]}
 
-      if [[ -n "$PERLIM" && "$PERCENT" -gt "$PERLIM" ]]; then
-        echo "" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "$RESOURCE_NAME limit % warning: (current: $CURRENT_UTILIZATION, limit: $LIMIT_VALUE, threshold: $PERLIM % , now: $PERCENT %)"
-      fi
+          printf "%-15s %-24s %-8s %-4s %-8s %-4s \n" "RESOURCE_NAME:" "$RESOURCE_NAME" "PERLIM:" "$PERLIM" "PERCENT:" "$PERCENT"
+
+          if [[ -n "$PERLIM" && "$PERCENT" -gt "$PERLIM" ]]; then
+             echo "" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "$RESOURCE_NAME limit % warning: (current: $CURRENT_UTILIZATION, limit: $LIMIT_VALUE, threshold: $PERLIM % , now: $PERCENT %)"
+          fi
+       fi
     fi
     done
   done # DB
 done # HOST
-
 
