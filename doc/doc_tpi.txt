@@ -3,9 +3,9 @@
 
 Краткое описание:
 
-TPI — это мощная консольная система мониторинга и диагностики баз данных Oracle, объединяющая в себе функции Enterprise Manager, AWR/ASH отчетов, 
+TPI — это мощная CLI консольная система мониторинга и диагностики баз данных Oracle, объединяющая в себе функции Enterprise Manager, AWR/ASH отчетов, 
 SQL-тюнинга и повседневного администрирования. Легковесный инструмент, написанный на bash/perl/SQL, не требующий запущенного агента и потребляющий минимум ресурсов.
-Универсально работающий под ОС: Linux, IBM AIX, Solaris, Cygwin\OpenSSH - Windows. Начиная с версии oracle 9i и далее. 
+Универсально работающий под ОС: Linux, IBM AIX, Solaris, Cygwin\OpenSSH - Windows. Начиная с версии oracle 9i и далее. В общем, это система быстрого реагирования, диагностики, оптимизации и т.п.
 
 Ключевые преимущества:
 
@@ -2338,28 +2338,40 @@ OWNER                TABLE_NAME                     COLUMN_NAME                 
 IBS                  Z#MST_REPORT                   C_MST_ART                      SYS_LOB0000204136C00011$$      T_USR                          SYS_IL0000204136C00011$$       NO
 
 
-32.1 l [unused OWNER LOBSEGMENT] - статистика по LOB сегменту,  объекты с спецсимволами "$" необходимо экранировать или взять в одинарные кавычки 'SYS_LOB0000204136C00010$$'
+32.1 l [table TABLE OWNER COLUMN_NAME] - статистика по LOB сегменту,  объекты с спецсимволами "$" необходимо экранировать или взять в одинарные кавычки 'SYS_LOB0000204136C00010$$'
 
-$ tpi mprod l unused IBS 'SYS_LOB0000204136C00010$$'
+$ tpi mprod l table OSNS_STATEMENT_REQ_T EIP RESPONSE_BLOB
 
-SEGMENT_NAME = IBS.SYS_LOB0000204136C00010$$
+"Segment from dba_lobs where owner='EIP' and table_name='OSNS_STATEMENT_REQ_T' AND COLUMN_NAME='RESPONSE_BLOB'"
+
+OWNER                TABLE_NAME                     COLUMN_NAME                    SEGMENT_NAME                   TABLESPACE_NAME                INDEX_NAME                     PARTITIONED  SECUREFILE
+-------------------- ------------------------------ ------------------------------ ------------------------------ ------------------------------ ------------------------------ ------------ ----------
+EIP                  OSNS_STATEMENT_REQ_T           RESPONSE_BLOB                  SYS_LOB0002869421C00007$$      APEX_6590025678194514          SYS_IL0002869421C00007$$       NO           YES
+
+"For CLOBs dbms_lob.getlength function returns the number of CHARACTER. For BLOBs use the following query:"
+
+SQL
+----------------------------------------------------------------------------------------------------
+select sum(dbms_lob.getlength(RESPONSE_BLOB))/1024/1024 from EIP.OSNS_STATEMENT_REQ_T
+46981.61 Mb
+
+DBMS_SPACE.unused_space for SEGMENT_NAME = EIP.SYS_LOB0002869421C00007$$
 ------------------------------
-TOTAL_BLOCKS = 152
-TOTAL_BYTES = 1245184
-TOTAL_MB = 1.1875
+TOTAL_BLOCKS = 6266896
+TOTAL_BYTES = 51338412032
+TOTAL_MB = 48960.125
 UNUSED_BLOCKS = 0
 UNUSED BYTES = 0
 UNUSED MB = 0
-LAST_USED_EXTENT_FILE_ID = 13
-LAST_USED_EXTENT_BLOCK_ID = 31360
-LAST_USED_BLOCK = 128
+LAST_USED_EXTENT_FILE_ID = 39
+LAST_USED_EXTENT_BLOCK_ID = 978560
+LAST_USED_BLOCK = 1024
 
 "Some recomendations:"
-alter table IBS.Z#MST_REPORT enable row movement;
-alter table IBS.Z#MST_REPORT shrink space cascade;
-alter table IBS.Z#MST_REPORT disable row movement;
-alter table IBS.Z#MST_REPORT modify lob (C_MST_BODY) (shrink space cascade);
-alter table IBS.Z#MST_REPORT move lob (C_MST_BODY) STORE AS (TABLESPACE T_USR);
+alter table EIP.OSNS_STATEMENT_REQ_T enable row movement;
+alter table EIP.OSNS_STATEMENT_REQ_T shrink space cascade;
+alter table EIP.OSNS_STATEMENT_REQ_T disable row movement;
+alter table EIP.OSNS_STATEMENT_REQ_T move lob (RESPONSE_BLOB) STORE AS (TABLESPACE APEX_6590025678194514);
 "Other recomendation for IOT: ALTER TABLE iot_name OVERFLOW SHRINK SPACE;"
 
 
@@ -3108,7 +3120,7 @@ DATABASE_TYPE                 : SINGLE
 ---------------------------------------------------
 
 пример, запуска команды ОС:
-(использовать осторожно, это довольно мощно)
+(использовать с осторожностью, это довольно мощно. Хорошо помогает, если надо запустить что-то на удаленном хосте, например rtpi host DB exec "! df -h | grep backup")
 
 $ tpi mprod exec  "! ls -l"
 
@@ -3734,11 +3746,10 @@ $ tpi mprod sql sqlstat ela
    1    0 bn7sh27xnf8ds                 0 15/10/25 17:55:09        2,687             0        0        0        2,687            0           4,255            1         .0291         .0412          0        36712
 
 
-55. ash [in=INST_ID] [con=[CON_ID]] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [FIELD CONDITION] | sql [top [pga [sess]|event]] [all [event]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV$ACTIVE_SESSION_HISTORY
+55. ash [in=INST_ID] [con=CON_ID] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where ["FIELD CONDITIONS"] | sql [top [pga [sess]|EVENT]] [all [EVENT]] [SQL_ID|SQL_TEXT] | plan SQL_ID [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | waitchains ["username||':'||program2||':'||sql_opname||':'||event2" "event2 like 'enq: TX %'"] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV$ACTIVE_SESSION_HISTORY
+    [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] - опция для работы с ASH, можно указать период, по-умолчанию 1 последний час
 
-    опция для работы с ASH, можно указать период [dd/mm/yy-HH:MI-HH:MI(hours) - def1h], - поумолчанию 1 последний час
-
-55.1 ash - без параметров выдаст достйпный период в ASH
+55.1 ash - без параметров выдаст доступный период в ASH
 $ tpi mprod ash
 
 "Avilable period at V$ACTIVE_SESSION_HISTORY:"
@@ -4755,6 +4766,22 @@ BEGIN_TIME      AAS    LEVELS           CPU    LEVELS           UIO   LEVELS    
 15/10/25-17:50  25.87  |=========       21.87  |=========       3.33  |======          0.07  |====            0.02    |==              0.00  |                0.52    |======          0.00  |                0.07   |==============
 15/10/25-17:51  14.00  |====            12.43  |====            0.98  |=               0.00  |                0.02    |==              0.00  |                0.57    |======          0.00  |                0.00   |
 
+
+55.22 tpi mprd ash waitchains "program||':'||module||':'||event2" "event2 like 'log file%'"  - запрос от Tanel Poder , показывает цепочку ожиданий в разных dimensions.
+
+%This  SECONDS   AAS WORD_WRAP  program:module:event2                                                                                                             FIRST_SEEN        LAST_SEEN         NUM_SIDS  MIN(SIDS)  MAX(SIDS)
+------ ------- ----- -------------------------------------------------------------------------------------------------------------------------------------------- ----------------- ----------------- -------- ---------- ----------
+  42%      119     0  -> oracle@mrct-prd-db.shoppinglive.local (LGWR)::log file parallel write                                                                    04/09/26-15:12:15 04/09/26-16:10:26        1        256        256
+  17%       49     0  -> JDBC Thin Client:JDBC Thin Client:log file sync  -> oracle@mrct-prd-db.shoppinglive.local (LGWR)::log file parallel write                04/09/26-15:12:15 04/09/26-16:07:56        1        256        256
+  15%       42     0  -> oracledb_exporter:oracledb_exporter:log file sync  -> oracle@mrct-prd-db.shoppinglive.local (LGWR)::log file parallel write              04/09/26-15:12:57 04/09/26-16:00:12        1        256        256
+  12%       35     0  -> JDBC Thin Client:JDBC Thin Client:log file sync  -> oracle@mrct-prd-db.shoppinglive.local (LGWR)::SYNC Remote Write                      04/09/26-15:19:36 04/09/26-15:59:07        1        256        256
+   5%       13     0  -> oracledb_exporter:oracledb_exporter:log file sync  -> oracle@mrct-prd-db.shoppinglive.local (LGWR)::SYNC Remote Write                    04/09/26-15:30:11 04/09/26-15:49:27        1        256        256
+   2%        6     0  -> oracledb_exporter:oracledb_exporter:log file sync  -> [idle blocker 1,256,49348 (oracle@mrct-prd-db.shoppinglive.local (LGWR))]          04/09/26-15:31:41 04/09/26-15:45:12        6         77        840
+   1%        4     0  -> zabbix_agentd_dbmon: active checks #2 [processin:zabbix_agentd_dbmon: active checks #2 [processin:log file sync  -> oracle@mrct-prd-db.s 04/09/26-15:55:57 04/09/26-16:09:57        1        256        256
+                     hoppinglive.local (LGWR)::log file parallel write
+
+   1%        3     0  -> oracle@mrct-prd-db.shoppinglive.local (J000):DBMS_SCHEDULER:log file sync  -> oracle@mrct-prd-db.shoppinglive.local (LGWR)::log file par 04/09/26-15:15:49 04/09/26-16:04:35        1        256        256
+                     allel write
 
 
 
