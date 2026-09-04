@@ -36,8 +36,7 @@ $cmd $SRV $SID db
 echo -e  '========================================================================================================================================================================================'
 $cmd $SRV $SID db nls
 echo -e  '========================================================================================================================================================================================'
-$cmd $SRV $SID exec  pt "select * from dba_network_acls"
-$cmd $SRV $SID exec  pt "select * from dba_network_acl_privileges"
+$cmd $SRV $SID acl
 echo -e  '========================================================================================================================================================================================'
 $cmd $SRV $SID db option
 echo -e  '========================================================================================================================================================================================'
@@ -69,7 +68,9 @@ echo -e  '======================================================================
 $cmd $SRV $SID p audit
 $cmd $SRV $SID s 'AUD$'
 $cmd $SRV $SID audit
-$cmd $SRV $SID audit login
+# remove from tpi  audit login
+# $cmd $SRV $SID audit login
+cat audit_login.sh | ssh $SRV "/bin/bash -s $SID"
 $cmd $SRV $SID audit maxcon
 $cmd $SRV $SID audit 1017
 $cmd $SRV $SID job | egrep 'dba_jobs information|AUD|--------|FAILURES'
@@ -101,6 +102,7 @@ $cmd $SRV $SID u % sys CREATE USER
 $cmd $SRV $SID u % sys BECOME USER
 $cmd $SRV $SID u % sys ALTER USER
 $cmd $SRV $SID u % sys DROP USER
+$cmd $SRV $SID u PUBLIC tab %
 echo -e  '========================================================================================================================================================================================'
 echo -e  "$cmd $SRV $SID o invalid | sed  -e '/Elapsed/q'"
 $cmd $SRV $SID o invalid | sed  -e '/Elapsed/q'

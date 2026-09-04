@@ -1,0 +1,13 @@
+# Except this file
+!.gitignore
+
+# vi .swp files
+.*.swp
+
+*.log
+*.tmp
+logf
+tmpf
+one_exec*.sh
+
+

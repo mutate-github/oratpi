@@ -81,7 +81,7 @@ WHERE d.database_role = 'PRIMARY';
 END
 ) || INTVAL=0
 echo \$INTVAL
-" | $SSHCMD $SSHUSER $HOST "$SUDO /bin/bash -s $DB" | tr -d '[[:cntrl:]]' | sed -e 's/^[ \t]*//')
+" | $SSHCMD $SSHUSER $HOST "$SUDO /bin/bash -s $DB" | tr -d '[[:cntrl:]]' | sed -e 's/^[ \t]*//')
 
     echo "PGA_USAGE: "$PGA_USAGE
 

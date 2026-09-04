@@ -125,7 +125,7 @@ run {
   backup incremental level = $LVL database filesperset 1 $not_backed
   format '/$NAS/$DB/level_${LVL}_%d_%t_%U' TAG 'LEVEL_${LVL}';
   backup archivelog all format '/$NAS/$DB/logs_%d_%t_%U' delete input TAG 'ARCHIVELOGS';
-  backup spfile format '/$NAS/$DB/spfile_%d_%U.bck' TAG 'SPFILE';
+#  backup spfile format '/$NAS/$DB/spfile_%d_%U.bck' TAG 'SPFILE';
 }
 EOF
 

@@ -26,22 +26,36 @@ if [[ -n "$etime" ]] && [[ ! "$etime" =~ "00:0[0123]" ]]; then
    exit 127
 fi
 
+
 start_job_with_timing()
 {
 (
-local script="$1"
-START=$(date +%s)
-$BASEDIR/${script} $CLIENT >> $BASEDIR/../log/${script}.log 2>&1
-END=$(date +%s)
-DURATION=$((END - START))
-# echo "Monitor: ================= mon_ping.sh "$(date +%d/%m/%Y-%H:%M:%S)  
-printf "%-15s Duration: %3d s %-10s %-20s \n" "${script}" "$DURATION" " Finish_time: " "$(date +%d/%m/%Y-%H:%M:%S)"
+    local script="$1"
+    local logdir="$BASEDIR/../log"
+    
+    # Формируем имя файла с номером месяца (например: mon_ping.sh_2023_month12.log)
+    local current_month=$(date +%Y_month%m)
+    local logfile="${logdir}/${script}_${current_month}.log"
+    
+    START=$(date +%s)
+    
+    # Запуск скрипта с записью в недельный лог
+    $BASEDIR/${script} $CLIENT >> "$logfile" 2>&1
+    
+    END=$(date +%s)
+    DURATION=$((END - START))
+    
+    printf "%-15s Duration: %3d s %-10s %-20s \n" "${script}" "$DURATION" " Finish_time: " "$(date +%d/%m/%Y-%H:%M:%S)"
+    
+    # Очистка старых логов (старше 32 дней)
+    # find "$logdir" -name "${script}*.log" -type f -mtime +32 -delete >/dev/null 2>&1 &
+    find "$logdir" -name "${script}*.log" -type f -mtime +32 -exec rm {} \; >/dev/null 2>&1 &
 ) 
 }
 
 
 echo ""
-echo "START ALL MONITORING *****************************************************************************"$(date)
+echo "START ALL MONITORING ***************************************************************************** "$(date)
 start_job_with_timing mon_ping.sh &
 start_job_with_timing mon_ssh.sh &
 start_job_with_timing mon_db.sh &
@@ -68,5 +82,5 @@ start_job_with_timing mon_aas.sh &
 start_job_with_timing mon_oratop.sh &
 start_job_with_timing kill_sniped.sh &
 wait
-echo "FINISH ALL MONITORING ****************************************************************************"$(date)
+echo "FINISH ALL MONITORING **************************************************************************** "$(date)
 

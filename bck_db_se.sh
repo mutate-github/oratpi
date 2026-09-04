@@ -154,7 +154,8 @@ run {
   allocate channel cpu2 type disk;
   backup AS COMPRESSED BACKUPSET incremental level = $LVL database filesperset 1 $not_backed
   format '/$NAS/$DB/level_$(sed -e 's/ /_/g' <<< $LVL)_%d_%t_%U' TAG 'LEVEL_$(sed -e 's/ /_/g' <<< $LVL)';
-  backup archivelog $LOGS not backed up 1 times format '/$NAS/$DB/logs_%d_%t_%U' delete input TAG 'ARCHIVELOGS';
+#  backup archivelog $LOGS not backed up 1 times format '/$NAS/$DB/logs_%d_%t_%U' delete input TAG 'ARCHIVELOGS';
+  backup archivelog $LOGS not backed up 1 times format '/$NAS/$DB/logs_%d_%t_%U'  TAG 'ARCHIVELOGS';
   backup spfile format '/$NAS/$DB/spfile_%d_%U.bck' TAG 'SPFILE';
 }
 EOF

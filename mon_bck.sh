@@ -23,11 +23,12 @@ LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 WRTPI="$BASEDIR/rtpi"
 [[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
-HOST_DB_SET=$($BASEDIR/iniget.sh $CONFIG backup host:db:set)
+# HOST_DB_SET=$($BASEDIR/iniget.sh $CONFIG backup host:db:set)
 hours_since_lvl0=$($BASEDIR/iniget.sh $CONFIG backup hours_since_lvl0)
 hours_since_lvl1=$($BASEDIR/iniget.sh $CONFIG backup hours_since_lvl1)
 hours_since_arch=$($BASEDIR/iniget.sh $CONFIG backup hours_since_arch)
 hours_since_ctrl=$($BASEDIR/iniget.sh $CONFIG backup hours_since_ctrl)
+SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 
 repeat_trigger()
 {
@@ -56,11 +57,28 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   DBS=$($BASEDIR/iniget.sh $CONFIG $HOST db)
   for DB in $(xargs -n1 echo <<< "$DBS"); do
     echo "DB="$DB
-    for HDS in $(xargs -n1 echo <<< $HOST_DB_SET); do
-      BHOST=$(awk -F: '{print $1}' <<< $HDS)
-      BDB=$(awk -F: '{print $2}' <<< $HDS)
-      if [[ $HOST = $BHOST && $DB = $BDB ]]; then
-        hours=($($WRTPI $HOST $DB rman last | awk -v DB=$DB 'BEGIN{IGNORECASE=1}/^.+[0-9] .+[0-9] .+[0-9] .+[0-9] .+[0-9] .+[0-9]$/{ if ($0 ~ DB) print }'))
+#--- skip for host:db:script1:script2
+    skip_outer_loop_db=0
+    for EXCL in $(xargs -n1 echo <<< $SCRIPTS_EXCLUDE); do
+       HOST_=$(awk -F: '{print $1}' <<< $EXCL)
+       DB_=$(awk -F: '{print $2}' <<< $EXCL)
+       SCRIPTS_=$(cut -d':' -f3- <<< $EXCL)
+       if [[ "$HOST_" = "$HOST" || "$HOST_" = % ]] && [[ "$DB_" = "$DB" || "$DB_" = % ]]  && [[ "$SCRIPTS_" == *"$SCRIPT_NAME"* || "$SCRIPTS_" == *%* ]]; then
+         echo "Find EXCLUDE HOST:   $HOST in   EXCL: $EXCL"
+         echo "Find EXCLUDE DB:     $DB   in   EXCL: $EXCL"
+         echo "Find EXCLUDE SCRIPT: $SCRIPT_NAME   in   SCRIPTS_: $SCRIPTS_" ; skip_outer_loop_db=1; break
+       fi
+    done
+    if [ "$skip_outer_loop_db" -eq 1 ]; then echo "SKIP and continue outher loop db!"; continue; fi
+#--- end skip for db
+
+#    for HDS in $(xargs -n1 echo <<< $HOST_DB_SET); do
+#      BHOST=$(awk -F: '{print $1}' <<< $HDS)
+#      BDB=$(awk -F: '{print $2}' <<< $HDS)
+#      echo "HOST=$HOST   BHOST=$BHOST   DB=$DB  BDB=$BDB "
+#      if [[ $BHOST = $HOST || $BHOST = % ]] && [[ $BDB = $DB || $BDB = % ]]; then
+##        hours=($($WRTPI $HOST $DB rman last | awk -v DB=$DB 'BEGIN{IGNORECASE=1}/^.+[0-9] .+[0-9] .+[0-9] .+[0-9] .+[0-9] .+[0-9]$/{ if ($0 ~ DB) print }'))
+        hours=($($WRTPI $HOST $DB rman last | awk -v DB=$DB 'BEGIN{IGNORECASE=1} $1==DB && $0 ~ /[0-9]/'))
         LAST_FULL="${hours[1]}"
         LAST_LEV0="${hours[2]}"
         LAST_LEV1="${hours[3]}"
@@ -109,8 +127,8 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
            [[ "$LAST_CTRL" -lt "$hours_since_ctrl" ]] && (rm "$TRG_FILE_CTRL"; echo "$LAST_CTRL -lt $hours_since_ctrl" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "RECOVER: $MSG")
 	   repeat_trigger $hours_since_ctrl $TRG_FILE_CTRL
         fi
-     fi
-    done
+#     fi
+#    done
   done
 done
 #NAME       LAST_FULL  LAST_LEV0  LAST_LEV1   LAST_BCK  LAST_ARCH  LAST_CTRL

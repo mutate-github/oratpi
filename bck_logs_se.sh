@@ -89,7 +89,7 @@ EOF
  fi
 else
 #   LOGS="until time 'sysdate' not backed up 1 times"
-   LOGS="all"
+   LOGS="all not backed up 1 times"
 fi
 echo "LOGS: "$LOGS
 
@@ -118,8 +118,9 @@ run{
   allocate channel cpu2 type disk;
   sql 'alter system archive log current';
 #  backup AS COMPRESSED BACKUPSET archivelog until time 'sysdate' not backed up 1 times format '/$NAS/$DB/logs_%d_%t_%U' delete input tag 'ARCHIVELOGS';
-  backup AS COMPRESSED BACKUPSET archivelog $LOGS format '/$NAS/$DB/logs_%d_%t_%U' delete input tag 'ARCHIVELOGS';
+  backup AS COMPRESSED BACKUPSET archivelog $LOGS format '/$NAS/$DB/logs_%d_%t_%U' tag 'ARCHIVELOGS';
 }
+DELETE noprompt ARCHIVELOG ALL COMPLETED BEFORE 'SYSDATE-3' BACKED UP 1 TIMES TO DEVICE TYPE disk;
 EOF
 echo "FINISH ARCHIVELOGS BACKUP > \$INF_STR at `date`"
 echo "==========================================================================================================================="

@@ -21,9 +21,9 @@ function iniget() {
   local inifile=$1
 
   if [ "$2" == "--list" ]; then
-    for section in $(cat $inifile | sed '/ *#/d; /^ *$/d' | grep "\[" | sed -e "s#\[##g" | sed -e "s#\]##g"); do
+    for section in $(sed '/ *#/d; /^ *$/d' | grep "\[" | sed -e "s#\[##g" | sed -e "s#\]##g"); do
       echo $section
-    done
+    done < <(cat $inifile)
     return 0
   fi
 
@@ -31,17 +31,18 @@ function iniget() {
   local key
   [ $# -eq 3 ] && key=$3
 
+  # https://stackoverflow.com/questions/49399984/parsing-ini-file-in-bash
   # This awk line turns ini sections => [section-name]key=value
 #  local lines=$(awk '/\[/{prefix=$0; next} $1{print prefix $0}' $inifile)
   local lines=$(awk '/\[/{prefix=$0; gsub(/[ \t]+$/,"",prefix); next} $1{print prefix $0}' $inifile | sed '/ *#/d; /^ *$/d')
   while read line; do
     if [[ "$line" =~ \[$section\]* ]]; then
-      local keyval=$(echo $line | sed -e "s/^\[$section\]//")
+      local keyval=$(sed -e "s/^\[$section\]//" <<< $line)
       if [[ -z "$key" ]]; then
         echo $keyval
       else
         if [[ "$keyval" = $key=* ]]; then
-          echo $(echo $keyval | sed -e "s/^$key=//")
+          echo $(sed -e "s/^$key=//" <<< $keyval)
         fi
       fi
     fi
@@ -49,7 +50,7 @@ function iniget() {
 }
 
 
-BASEDIR=`dirname $0`
+BASEDIR=$(dirname $0)
 
 iniget $BASEDIR/$1 $2 $3
 

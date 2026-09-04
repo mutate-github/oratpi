@@ -59,7 +59,6 @@ size_lim=536870912c    # size limit ~500Mb for lsn.log in bytes -nc
 
 $SET_ENV
 
-
 export ORACLE_SID=\$sid
 
 VALUE=\$(sqlplus -s '/as sysdba' <<'EOS'
@@ -71,7 +70,7 @@ EOS
 
 echo "diagnostic_dest: "\$VALUE
 cd \$VALUE
-adrci exec="show homes"
+adrci exec="show base; show homes;"
 
 trc=\$(echo "show homes;"  | adrci | grep 'diag/rdbms/.*/'\$sid'$')
 tns3=\$(echo "show homes;"  | adrci | grep 'diag/tnslsnr/.*/')
@@ -83,7 +82,7 @@ echo "set home for listener tns3: "\$tns3
 echo "age: "\$age
 
 for trc_ in \$(echo \$trc | xargs); do
-  echo "purge diag/rdbms/ ALERT TRACE INCIDENT CDUMP: "\$trc_
+  echo "DEBUG: adrci set home \$trc_ ; purge -age \$age -type ALERT ALERT TRACE INCIDENT CDUMP:"
   adrci exec="set home \$trc_ ; migrate schema"
   adrci exec="set home \$trc_ ; purge -age \$age -type ALERT"
   adrci exec="set home \$trc_ ; purge -age \$age -type TRACE"
@@ -92,7 +91,7 @@ for trc_ in \$(echo \$trc | xargs); do
 done
 
 for tns3_ in \$(echo \$tns3 | xargs); do
-  echo "purge listener ALERT TRACE: "\$tns3_
+  echo "DEBUG: adrci set home \$tns3 ; purge -age \$age -type ALERT TRACE:"
   adrci exec="set home \$tns3_ ; migrate schema"
   adrci exec="set home \$tns3_ ; purge -age \$age -type ALERT"
   adrci exec="set home \$tns3_ ; purge -age \$age -type TRACE"
@@ -101,15 +100,33 @@ for tns3_ in \$(echo \$tns3 | xargs); do
 done
 
 echo "BEGIN purge non-standard listener:"
-echo find "\$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name '*.log'"
-find \$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name "*.log" -size +\$size_lim
-find \$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name "*.log" -size +\$size_lim  -exec cp /dev/null {} \;
-find \$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name "*.*" -mtime +\$audit  -exec rm {} \; 
+printf "%s\n" "\$ORACLE_HOME" \$(dirname "\$ORACLE_HOME") "\$ORACLE_BASE" \$(dirname "\$ORACLE_BASE") | sort -u | while read -r PATH_BASE; do
+  # DIA-48447: The input path [/app] does not contain any ADR homes
+  if ! adrci exec="set base \$PATH_BASE ;" | grep -q "DIA-48447" ; then
+    PATH_HOMES=\$(echo "set base \$PATH_BASE ; show homes;"  | adrci | grep 'diag')
+    for PATH_HOME in \$PATH_HOMES; do
+      echo "  DEBUG: PATH_BASE: \$PATH_BASE    PATH_HOME: \$PATH_HOME"
+      echo "    DEBUG: migrate schema"
+      if ! adrci exec="set base \$PATH_BASE ; set home \$PATH_HOME ; migrate schema" | grep -q "DIA-48447" ; then
+        echo "    DEBUG: purge -age \$age -type ALERT"
+        adrci exec="set base \$PATH_BASE ; set home \$PATH_HOME ; purge -age \$age -type ALERT"
+        echo "    DEBUG: purge -age \$age -type TRACE"
+        adrci exec="set base \$PATH_BASE ; set home \$PATH_HOME ; purge -age \$age -type TRACE"
+      fi
+    done
+  fi
+done
+echo "  DEBUG: find \$ORACLE_BASE/diag/tnslsnr/\$(hostname)/ -type f -name '*.log' -size +\$size_lim"
+if [ -d "\$ORACLE_BASE/diag/tnslsnr/\$(hostname)" ]; then
+  find \$ORACLE_BASE/diag/tnslsnr/\$(hostname) -type f -name "*.log" -size +\$size_lim
+  find \$ORACLE_BASE/diag/tnslsnr/\$(hostname) -type f -name "*.log" -size +\$size_lim  -exec cp /dev/null {} \;
+  find \$ORACLE_BASE/diag/tnslsnr/\$(hostname) -type f -name "*.*" -mtime +\$audit  -exec rm {} \;
+fi
 echo "END purge non-standard listener"
 
-echo "BEGIN find old and huge rfs trace files \$(hostname) \$sid :"
+echo "DEBUG: find in \$VALUE/diag/rdbms old or huge *rfs*.tr[cm] trace files \$(hostname) \$sid :"
 find \$VALUE/diag/rdbms -type f -name "*rfs*.tr[cm]" -mtime +\$audit -exec rm -f {} \;
-find \$VALUE/diag/rdbms -type f -name "*rfs*.tr[cm]" -size +\$size_lim  -exec cp /dev/null {} \;
+find \$VALUE/diag/rdbms -type f -name "*rfs*.tr[cm]" -size +\$size_lim  -exec cp /dev/null {} \;
 
 VALUE=\$(sqlplus -S '/ as sysdba' <<'END'
   set pagesize 0 feedback off verify off heading off echo off timing off
@@ -120,10 +137,11 @@ END
 ) || VALUE=''
 
 VALUE=\$(eval echo \$VALUE)
-echo "purge audit logs for \$VALUE :"
 # ?/rdbms/audit -> \$ORACLE_HOME/rdbms/audit
 # find \$ORACLE_HOME/rdbms/audit -type f -mtime +\$audit -name "*.aud" -exec rm {} \;
+echo "DEBUG: 1 delete audit logs for \$ORACLE_BASE/admin/\$ORACLE_SID/adump :"
 find \$ORACLE_BASE/admin/\$ORACLE_SID/adump -type f -mtime +\$audit -name "*.aud" -exec rm {} \;
+echo "DEBUG: 2 delete audit logs for \$VALUE :"
 case \$(uname | awk -F_ '{print \$1}') in
   Linux)   find \$VALUE  -type f -mtime +\$audit -name "*.aud" | xargs -i -P20 rm {} ;;
   *)       find \$VALUE  -type f -mtime +\$audit -name "*.aud" -exec rm {} \; ;;

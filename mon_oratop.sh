@@ -64,13 +64,17 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     $WRTPI $HOST $DB oratop h | awk  '/^BEGIN_TIME |^[0-9]/' > $LOGF
 
     NUM_COL_IORL=$(awk  '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="IORL") print i }' $LOGF)
-    echo -n "NUM_COL_IORL: "$NUM_COL_IORL
+#    echo -n "NUM_COL_IORL: "$NUM_COL_IORL
     sed '1,2d' $LOGF | sed '$d' > ${LOGF}.cut.log  # cut 1,2 (heap) and last line - bad statistics
     GLINES="31"
 
-    cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {printf " iorltotal: %.0f", iorltotal; printf " lin: %.0f", lin; (lin>0 ? iorlav=iorltotal/lin : 0);  printf " iorlav: %.2f", iorlav }'
-    VAL_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {(lin>0 ? iorlav=iorltotal/lin : 0);  printf "%.0f", iorlav }')
-    echo -n  "  VAL_IORL: "$VAL_IORL
+#    old method -  AVERAGE:
+#    cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {printf " iorltotal: %.0f", iorltotal; printf " lin: %.0f", lin; (lin>0 ? iorlav=iorltotal/lin : 0);  printf " iorlav: %.2f", iorlav }'
+#    VAL_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {(lin>0 ? iorlav=iorltotal/lin : 0);  printf "%.0f", iorlav }')
+#   new method - MEDIAN:
+#    cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{col21[NR]=$IORL} END {n=NR; asort(col21); if(n%2==1) print col21[(n+1)/2]; else print (col21[n/2]+col21[n/2+1])/2}'
+    VAL_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{col21[NR]=$IORL} END {n=NR; asort(col21); if(n%2==1) print col21[(n+1)/2]; else print (col21[n/2]+col21[n/2+1])/2}')
+    echo -n "NUM_COL_IORL: $NUM_COL_IORL    VAL_IORL: $VAL_IORL"
     if [ "$VAL_IORL" -gt "$ORATOP_IORL_LIMIT" ]; then
       cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "IORL Warning in last 30 min, current: $VAL_IORL, threshold: $ORATOP_IORL_LIMIT"
     fi
