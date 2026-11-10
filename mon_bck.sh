@@ -37,9 +37,9 @@ repeat_trigger()
   REPEAT_AT=$($BASEDIR/iniget.sh $CONFIG mail repeat_at)
   HH=$(date +%H)
   case "$HH" in
-    "${REPEAT_AT}")
+    ${REPEAT_AT})
        REPEAT_MINUTES=$($BASEDIR/iniget.sh $CONFIG mail repeat_minutes)
-       FF=$(find "$TRG_FILE_ARCH" -mmin +$REPEAT_MINUTES 2>/dev/null | wc -l)
+       FF=$(find "$file_for_touch_" -mmin +$REPEAT_MINUTES 2>/dev/null | wc -l)
        if [ "$FF" -eq 1 ]; then
           echo "$LAST_ARCH -ge $hours_since_" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST $DB "- TRIGGER REPEAT: $(date +%H:%M:%S-%d/%m/%y) $MSG REPEAT_MINUTES=${REPEAT_MINUTES} REPEAT_AT=${REPEAT_AT} )"
           echo "TRIGGER REPEAT: $(date +%H:%M:%S-%d/%m/%y) $MSG REPEAT_MINUTES=${REPEAT_MINUTES} REPEAT_AT=${REPEAT_AT}   host: "${HOST} " database: "${DB}
@@ -89,7 +89,11 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
         echo "LF: $LAST_FULL  L0: $LAST_LEV0  L1: $LAST_LEV1  LB: $LAST_BCK  LA:$LAST_ARCH LC: $LAST_CTRL " 
         echo "HSL0: $hours_since_lvl0  HSL1: $hours_since_lvl1  HSARCH: $hours_since_arch  HSCTRL: $hours_since_ctrl"
 
-        LAST_LEV0=$( [[ $LAST_FULL > $LAST_LEV0 ]] && echo $LAST_FULL || echo $LAST_LEV0 )
+#        LAST_LEV0=$( [[ $LAST_FULL -gt $LAST_LEV0 ]] && echo $LAST_FULL || echo $LAST_LEV0 )
+#       get min from LAST_FULL LAST_LEV0 exclude -1 value
+        if (( LAST_FULL > 0 && (LAST_LEV0 <= 0 || LAST_FULL < LAST_LEV0) )); then
+           LAST_LEV0=$LAST_FULL
+        fi
         echo "LAST_LEV0: "$LAST_LEV0
         TRG_FILE_LVL0="$LOGDIR/mon_bck_${HOST}_${DB}_LVL0.trg"
         TRG_FILE_LVL1="$LOGDIR/mon_bck_${HOST}_${DB}_LVL1.trg"

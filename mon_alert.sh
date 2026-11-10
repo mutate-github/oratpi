@@ -117,7 +117,7 @@ BEGIN {
          {
            OLDLINE = sprintf("%s<BR>%s", OLDLINE, \$0);
          }
-        if ( \$0 ~ /ORA-/ || /[Ff]uzzy/ )
+        if ( \$0 ~ /ORA-/ || \$0 ~ /[Ff]uzzy/ )
           { # extract the error
             errloc=index(\$0,"ORA-")
             if (errloc > 0)

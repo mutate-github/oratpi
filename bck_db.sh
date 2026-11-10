@@ -36,7 +36,6 @@ WMMAIL="$BASEDIR/$MAILS"
 MPREFIX=$($BASEDIR/iniget.sh $CONFIG mail prefix)
 ADMINS=$($BASEDIR/iniget.sh $CONFIG admins email)
 TARGET=$($BASEDIR/iniget.sh $CONFIG backup target)
-TNS_CATALOG=$($BASEDIR/iniget.sh $CONFIG backup tns_catalog)
 HOST_DB_SET=$($BASEDIR/iniget.sh $CONFIG backup host:db:set)
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 shopt -s extglob
@@ -62,6 +61,7 @@ LOGF_TOTAL="$LOGDIR/bck_db_total_${DS_}.log"
 echo "Start time: "$DS_  > $LOGF_TOTAL
 
 for HDS in $(echo $HDSLST | xargs -n1 echo); do
+  TNS_CATALOG=$($BASEDIR/iniget.sh $CONFIG backup tns_catalog)
   HOST=$(echo $HDS | awk -F: '{print $1}')
   DB=$(echo $HDS | awk -F: '{print $2}')
   NAS=$(echo $HDS | awk -F: '{print $3}')
@@ -83,7 +83,7 @@ for HDS in $(echo $HDSLST | xargs -n1 echo); do
   shopt -u nocasematch
 
   if [ -z "$LVL" ]; then
-    WD=$(date +"%a")
+    WD=$(LC_ALL=C date +"%a")
     case $WD in
       ${LEVEL0})     LVL="0" ;;
       ${LEVEL1})     LVL="1" ;;

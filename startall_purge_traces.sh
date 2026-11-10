@@ -99,6 +99,12 @@ for tns3_ in \$(echo \$tns3 | xargs); do
   find \$VALUE/\$tns3_/trace -type f -name "*.log" -size +\$size_lim -exec cp /dev/null {} \;
 done
 
+for trc_one in \${trc}; do
+  PATH_TO_TRACE=\${VALUE}/\${trc_one}
+  echo "PATH_TO_TRACE: "\$PATH_TO_TRACE
+  find \$PATH_TO_TRACE -type f -name "*.tr*" -mtime +30 -exec rm -f {} \;
+done
+
 echo "BEGIN purge non-standard listener:"
 printf "%s\n" "\$ORACLE_HOME" \$(dirname "\$ORACLE_HOME") "\$ORACLE_BASE" \$(dirname "\$ORACLE_BASE") | sort -u | while read -r PATH_BASE; do
   # DIA-48447: The input path [/app] does not contain any ADR homes

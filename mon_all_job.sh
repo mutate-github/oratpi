@@ -22,7 +22,7 @@ if [[ -n "$etime" ]] && [[ ! "$etime" =~ "00:0[0123]" ]]; then
    echo "Previous script did not finish. "$(date)
    ps -eo 'pid,ppid,lstart,etime,args' | egrep "$0 $CLIENT" | awk '!/grep|00:0[0123]/'
    echo "Cancelling running now, send alert message and exiting ..."
-   ps -fu oracle | $BASEDIR/send_msg.sh $CONFIG "Script: " $0 " did not finish, do check for hung previous"
+   ps -fu oracle | $BASEDIR/send_msg.sh $CONFIG $0  " did not finish, do check for hung previous"
    exit 127
 fi
 

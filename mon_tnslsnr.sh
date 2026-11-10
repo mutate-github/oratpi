@@ -53,10 +53,10 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   if [ "$?" -ne 0 ]; then echo "test_ssh.sh not return 0, continue"; continue; fi
   OS=$($SSHCMD $HOST "uname")
   $SSHCMD $SSHUSER $HOST "$SUDO bash <<-'EOF'
-    ps -eo 'user,args' | grep "/bin/[t]nslsnr " | grep -v zabbix | sort | uniq | sort -k2,2 -k3,3 -k4,4
+    ps -eo 'user,args' | grep "/bin/[t]nslsnr " | grep -v zabbix | sort -u -k2,2 -k3,3 -k4,4
 EOF
 " > $LOGF
-  if [ -s $LOGF ]; then
+  if [ -f $LOGF ]; then
     diff $LOGF_TNS_OLD $LOGF > $LOGF_TNS_DIFF
 
     if [ -s $LOGF_TNS_DIFF ]; then

@@ -48,7 +48,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     if [ ! -f $TRG_FILE ]; then
       echo "created at: $(date +%H:%M:%S-%d/%m/%y)  by  ${SCRIPT_NAME}" > $TRG_FILE
       echo "$TRG_FILE is not exists. created. For host: $HOST $MSG"
-      echo "" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST NULL "TRIGGER: $MSG"
+      echo "" | $BASEDIR/send_msg.sh $CONFIG $0 $HOST - "TRIGGER: $MSG"
     else
       echo "$TRG_FILE is exists."
       HH=$(date +%H)
@@ -60,7 +60,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
            REPEAT_MINUTES=$($BASEDIR/iniget.sh $CONFIG mail repeat_minutes)
            FF=$(find "$TRG_FILE" -mmin +$REPEAT_MINUTES 2>/dev/null | wc -l)
            if [ "$FF" -eq 1 ]; then
-               echo $MSG | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST NULL "TRIGGER REPEAT: $(date +%H:%M:%S-%d/%m/%y) $MSG REPEAT_MINUTES=${REPEAT_MINUTES} REPEAT_AT=${REPEAT_AT}"
+               echo $MSG | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST - "TRIGGER REPEAT: $(date +%H:%M:%S-%d/%m/%y) $MSG REPEAT_MINUTES=${REPEAT_MINUTES} REPEAT_AT=${REPEAT_AT}"
                echo "TRIGGER REPEAT: $(date +%H:%M:%S-%d/%m/%y) $MSG REPEAT_MINUTES=${REPEAT_MINUTES} REPEAT_AT=${REPEAT_AT}   host: "${HOST}
 	       touch $TRG_FILE
            fi
@@ -73,7 +73,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     if [ -f $TRG_FILE ]; then
       rm $TRG_FILE
       MSG="SSH responds"
-      echo "recover at: $(date +%H:%M:%S-%d/%m/%y)" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST NULL "RECOVER: $MSG"
+      echo "recover at: $(date +%H:%M:%S-%d/%m/%y)" | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST - "RECOVER: $MSG"
     fi
   fi
 done

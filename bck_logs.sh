@@ -31,7 +31,6 @@ LOGDIR="$BASEDIR/../log"
 if [ ! -d "$LOGDIR" ]; then mkdir -p "$LOGDIR"; fi
 ADMINS=$($BASEDIR/iniget.sh $CONFIG admins email)
 TARGET=$($BASEDIR/iniget.sh $CONFIG backup target)
-TNS_CATALOG=$($BASEDIR/iniget.sh $CONFIG backup tns_catalog)
 HOST_DB_SET=$($BASEDIR/iniget.sh $CONFIG backup host:db:set)
 SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SET_ENV_F="$BASEDIR/set_env"
@@ -50,6 +49,7 @@ else
 fi
 
 for HDS in $(echo "$HDSLST" | xargs -n1 echo); do
+  TNS_CATALOG=$($BASEDIR/iniget.sh $CONFIG backup tns_catalog)
   HOST=$(echo $HDS | awk -F: '{print $1}')
   DB=$(echo $HDS | awk -F: '{print $2}')
   NAS=$(echo $HDS | awk -F: '{print $3}')

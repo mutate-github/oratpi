@@ -26,8 +26,12 @@ WRTPI="$BASEDIR/rtpi"
 SCRIPTS_EXCLUDE=$($BASEDIR/iniget.sh $CONFIG exclude host:db:scripts)
 ORATOP_IORL_LIMIT=$($BASEDIR/iniget.sh $CONFIG threshold ORATOP_IORL_LIMIT)
 ORATOP_DBTM_X=$($BASEDIR/iniget.sh $CONFIG threshold ORATOP_DBTM_X)
-echo "ORATOP_IORL_LIMIT: "$ORATOP_IORL_LIMIT
-echo "ORATOP_DBTM_X: "$ORATOP_DBTM_X
+ORATOP_IOMBPS_X=$($BASEDIR/iniget.sh $CONFIG threshold ORATOP_IOMBPS_X)
+ORATOP_HCPUB_LIMIT=$($BASEDIR/iniget.sh $CONFIG threshold ORATOP_HCPUB_LIMIT)
+#echo "ORATOP_IORL_LIMIT: $ORATOP_IORL_LIMIT"
+#echo "ORATOP_DBTM_X: $ORATOP_DBTM_X"
+#echo "ORATOP_IOMBPS_X: $ORATOP_IOMBPS_X"
+#echo "ORATOP_HCPUB_LIMIT: $ORATOP_HCPUB_LIMIT"
 
 for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
   echo "++++++++++"
@@ -62,44 +66,112 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 #22/10/25-13:21:54     0      0    0   87   12      9    699   119     0     1     1     0     0     0      0        1       14      0       5      0        587       0       0      0      0    1    0    8
 
     $WRTPI $HOST $DB oratop h | awk  '/^BEGIN_TIME |^[0-9]/' > $LOGF
-
-    NUM_COL_IORL=$(awk  '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="IORL") print i }' $LOGF)
-#    echo -n "NUM_COL_IORL: "$NUM_COL_IORL
-    sed '1,2d' $LOGF | sed '$d' > ${LOGF}.cut.log  # cut 1,2 (heap) and last line - bad statistics
     GLINES="31"
+    sed '1,2d' $LOGF | sed -n -e :a -e '1,5!{P;N;D;};N;ba' > ${LOGF}.cut.log  # cut 1,2 (heap) and last 5 line - bad statistics
+# IORL - new method MEDIANA
+    NUM_COL_IORL=$(awk  '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="IORL") print i }' $LOGF)
 
 #    old method -  AVERAGE:
 #    cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {printf " iorltotal: %.0f", iorltotal; printf " lin: %.0f", lin; (lin>0 ? iorlav=iorltotal/lin : 0);  printf " iorlav: %.2f", iorlav }'
 #    VAL_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{ iorltotal+=$IORL; lin+=1 } END {(lin>0 ? iorlav=iorltotal/lin : 0);  printf "%.0f", iorlav }')
 #   new method - MEDIAN:
 #    cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{col21[NR]=$IORL} END {n=NR; asort(col21); if(n%2==1) print col21[(n+1)/2]; else print (col21[n/2]+col21[n/2+1])/2}'
-    VAL_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{col21[NR]=$IORL} END {n=NR; asort(col21); if(n%2==1) print col21[(n+1)/2]; else print (col21[n/2]+col21[n/2+1])/2}')
-    echo -n "NUM_COL_IORL: $NUM_COL_IORL    VAL_IORL: $VAL_IORL"
-    if [ "$VAL_IORL" -gt "$ORATOP_IORL_LIMIT" ]; then
-      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "IORL Warning in last 30 min, current: $VAL_IORL, threshold: $ORATOP_IORL_LIMIT"
-    fi
+# in solaris not exists asort function in awk \ nawk
+#    VAL_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '{col21[NR]=$IORL} END {n=NR; asort(col21); if(n%2==1) print col21[(n+1)/2]; else print (col21[n/2]+col21[n/2+1])/2}')
 
+# Стало (portable, работает на Solaris/AIX/Linux):
+VAL_IORL=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v IORL="$NUM_COL_IORL" '
+{
+    col21[NR] = $IORL
+}
+END {
+    n = NR
+    if (n == 0) { print "0"; exit }
+    # Сортировка вставками
+    for (i = 2; i <= n; i++) {
+        key = col21[i]
+        j = i - 1
+        while (j >= 1 && col21[j] > key) {
+            col21[j+1] = col21[j]
+            j--
+        }
+        col21[j+1] = key
+    }
+    # Медиана
+    if (n % 2 == 1) {
+        print col21[(n+1)/2]
+    } else {
+        print (col21[n/2] + col21[n/2 + 1]) / 2
+    }
+}'
+)
+    printf "%s\n" "ORATOP_IORL_LIMIT: $ORATOP_IORL_LIMIT NUM_COL_IORL: $NUM_COL_IORL   VAL_IORL: $VAL_IORL"
+    if [ "$VAL_IORL" -gt "$ORATOP_IORL_LIMIT" ]; then
+      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "IORL Warning in last 30 min, current mediana average: $VAL_IORL, threshold: $ORATOP_IORL_LIMIT"
+    fi
+# DBTM  old method -  AVERAGE
     NUM_COL_DBTM=$(awk '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="DBTM") print i }' $LOGF)
-    echo ""
-    echo -n "NUM_COL_DBTM: "$NUM_COL_DBTM
     tail -$GLINES ${LOGF}.cut.log > ${LOGF}.cut.log.tmp && mv ${LOGF}.cut.log.tmp ${LOGF}.cut.log
     HALF_LINES=$(( $(tail -$GLINES ${LOGF}.cut.log | wc -l) / 2 ))
     VAL_DBTMAV=$(tail -$GLINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
     VAL_1HALFAV=$(head -$HALF_LINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
     VAL_2HALFAV=$(tail -$HALF_LINES ${LOGF}.cut.log | awk -v DBTM="$NUM_COL_DBTM" '{ dbtm+=$DBTM; lin+=1 } END {(lin>0 ? dbtmav=dbtm/lin : 0); printf "%.0f", dbtmav}')
-    echo -n "  VAL_DBTMAV: "$VAL_DBTMAV
-    echo -n "  VAL_1HALFAV: "$VAL_1HALFAV
-    echo -n "  VAL_2HALFAV: "$VAL_2HALFAV
-    X_1HALFAV=$(( $VAL_1HALFAV * "$ORATOP_DBTM_X" ))
-    echo -n "  X_1HALFAV: "$X_1HALFAV
+    X_1HALFAV=$(( $VAL_1HALFAV * $ORATOP_DBTM_X ))
 
     DIFF_2HALF_1HALF=$(( $VAL_2HALFAV - VAL_1HALFAV ))
-    echo -n "  DIFF_2HALF_1HALF: "$DIFF_2HALF_1HALF
-    echo -n "  for triggering must VAL_2HALFAV -gt VAL_1HALFAV * $ORATOP_DBTM_X and DIFF_2HALF_1HALF must be bigger than VAL_DBTMAV and VAL_1HALFAV -gt 60"
-    echo ""
+    printf "%s" "ORATOP_DBTM_X: $ORATOP_DBTM_X   NUM_COL_DBTM: $NUM_COL_DBTM   HALF_LINES: $HALF_LINES   VAL_DBTMAV: $VAL_DBTMAV   VAL_1HALFAV: $VAL_1HALFAV   VAL_2HALFAV: $VAL_2HALFAV   X_1HALFAV: $X_1HALFAV   DIFF_2HALF_1HALF: $DIFF_2HALF_1HALF"
+    printf " -  for triggering must $VAL_2HALFAV -gt $X_1HALFAV && $DIFF_2HALF_1HALF -gt $VAL_DBTMAV && $VAL_1HALFAV -gt 60 'DBTMs'\n"
     if [[ "$VAL_2HALFAV" -gt "$X_1HALFAV" && "$DIFF_2HALF_1HALF" -gt "$VAL_DBTMAV" && "$VAL_1HALFAV" -gt 60 ]]; then
-      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "DBTM Warning in last 30 min: last 15min: $VAL_2HALFAV * $ORATOP_DBTM_X are bigger than first 15min: $VAL_1HALFAV"
+      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "DBTM Warning in last 30 min: $VAL_2HALFAV -gt $X_1HALFAV ($VAL_1HALFAV * $ORATOP_DBTM_X) && $DIFF_2HALF_1HALF -gt $VAL_DBTMAV && $VAL_1HALFAV -gt 60"
     fi
+# IOMBPS  old method -  AVERAGE
+    NUM_COL_IOMBPS=$(awk '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="IOMBPS") print i }' $LOGF)
+    tail -$GLINES ${LOGF}.cut.log > ${LOGF}.cut.log.tmp && mv ${LOGF}.cut.log.tmp ${LOGF}.cut.log
+    HALF_LINES=$(( $(tail -$GLINES ${LOGF}.cut.log | wc -l) / 2 ))
+    VAL_IOMBPSAV=$(tail -$GLINES ${LOGF}.cut.log | awk -v IOMBPS="$NUM_COL_IOMBPS" '{ iombps+=$IOMBPS; lin+=1 } END {(lin>0 ? iombpsav=iombps/lin : 0); printf "%.0f", iombpsav}')
+    VAL_1HALFAV=$(head -$HALF_LINES ${LOGF}.cut.log | awk -v IOMBPS="$NUM_COL_IOMBPS" '{ iombps+=$IOMBPS; lin+=1 } END {(lin>0 ? iombpsav=iombps/lin : 0); printf "%.0f", iombpsav}')
+    VAL_2HALFAV=$(tail -$HALF_LINES ${LOGF}.cut.log | awk -v IOMBPS="$NUM_COL_IOMBPS" '{ iombps+=$IOMBPS; lin+=1 } END {(lin>0 ? iombpsav=iombps/lin : 0); printf "%.0f", iombpsav}')
+    X_1HALFAV=$(( $VAL_1HALFAV * $ORATOP_IOMBPS_X ))
+
+    DIFF_2HALF_1HALF=$(( $VAL_2HALFAV - VAL_1HALFAV ))
+    printf "%s" "ORATOP_IOMBPS_X: $ORATOP_IOMBPS_X   NUM_COL_IOMBPS: $NUM_COL_IOMBPS   HALF_LINES: $HALF_LINES   VAL_IOMBPSAV: $VAL_IOMBPSAV   VAL_1HALFAV: $VAL_1HALFAV   VAL_2HALFAV: $VAL_2HALFAV   X_1HALFAV: $X_1HALFAV   DIFF_2HALF_1HALF: $DIFF_2HALF_1HALF"
+    printf " - for triggering must $VAL_2HALFAV -gt $X_1HALFAV && $DIFF_2HALF_1HALF -gt $VAL_IOMBPSAV && $VAL_1HALFAV -gt 20 'MbPerSec'\n"
+    if [[ "$VAL_2HALFAV" -gt "$X_1HALFAV" && "$DIFF_2HALF_1HALF" -gt "$VAL_IOMBPSAV" && "$VAL_1HALFAV" -gt 20 ]]; then
+      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "IOMBPS Warning in last 30 min: $VAL_2HALFAV -gt $X_1HALFAV ($VAL_1HALFAV * $ORATOP_IOMBPS_X) && $DIFF_2HALF_1HALF -gt $VAL_IOMBPSAV && $VAL_1HALFAV -gt 20"
+    fi
+# HCPUB new method - MEDIANA
+    NUM_COL_HCPUB=$(awk '/BEGIN_TIME/{for(i=1;i<=NF;++i) if ($i=="HCPUB") print i }' $LOGF)
+
+    VAL_HCPUB=$(cat ${LOGF}.cut.log | tail -$GLINES | awk -v HCPUB="$NUM_COL_HCPUB" '
+    {
+        col21[NR] = $HCPUB
+    }
+    END {
+      n = NR
+      if (n == 0) { print "0"; exit }
+      # Сортировка вставками
+      for (i = 2; i <= n; i++) {
+        key = col21[i]
+        j = i - 1
+        while (j >= 1 && col21[j] > key) {
+            col21[j+1] = col21[j]
+            j--
+        }
+        col21[j+1] = key
+      }
+      # Медиана
+      if (n % 2 == 1) {
+          print col21[(n+1)/2]
+      } else {
+          print (col21[n/2] + col21[n/2 + 1]) / 2
+      }
+   }'
+   )
+    printf "%s\n" "ORATOP_HCPUB_LIMIT: $ORATOP_HCPUB_LIMIT   NUM_COL_HCPUB: $NUM_COL_HCPUB   VAL_HCPUB: $VAL_HCPUB"
+    if [ "$VAL_HCPUB" -gt "$ORATOP_HCPUB_LIMIT" ]; then
+      cat $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "HCPUB Warning in last 30 min, current mediana average: $VAL_HCPUB, threshold: $ORATOP_HCPUB_LIMIT"
+    fi
+
     rm $LOGF $LOGF.cut.log
   done
 done

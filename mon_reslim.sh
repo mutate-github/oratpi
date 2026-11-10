@@ -64,7 +64,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 
     if [[ -n "$RESOURCE_NAME" ]]; then
 #       PERLIM=$($BASEDIR/iniget.sh $CONFIG threshold $RESOURCE_NAME)
-       if [[ -n ARR[${RESOURCE_NAME}]+x ]]; then
+       if [[ -n ${ARR[${RESOURCE_NAME}]+x} ]]; then
 #          echo "${RESOURCE_NAME}: ${ARR[${RESOURCE_NAME}]}"
           PERLIM=${ARR[${RESOURCE_NAME}]}
 

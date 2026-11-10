@@ -69,7 +69,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 	" > $LOGF
         ;;
   esac
-  if [ -s $LOGF ]; then
+  if [ -f $LOGF ]; then
     diff $LOGF_FS_OLD $LOGF > $LOGF_FS_DIFF
 
     if [ -s $LOGF_FS_DIFF ]; then

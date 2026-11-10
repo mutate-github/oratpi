@@ -2,18 +2,36 @@
 # echo "version $TPIVER by Talgat Mukhametshin dba.almaty@gmail.com  last version: https://github.com/mutate-github/tpi"
 set -f
 shopt -s nocasematch 2>/dev/null
-TPIVER="03.09.26"
+TPIVER="04.11.26"
+
+base64_encode() {
+    if [ $# -gt 0 ]; then
+        printf '%s' "$1" | perl -MMIME::Base64 -0777 -ne 'print encode_base64($_, "")'
+    else
+        perl -MMIME::Base64 -0777 -ne 'print encode_base64($_, "")'
+    fi
+    echo
+}
+
+base64_decode() {
+    if [ $# -gt 0 ]; then
+        printf '%s' "$1" | perl -MMIME::Base64 -0777 -ne 'print decode_base64($_)'
+    else
+        perl -MMIME::Base64 -0777 -ne 'print decode_base64($_)'
+    fi
+}
 
 _P1_="$1"
 if [[ $_P1_ == tpibase64 ]]; then
   shift
-  ALL=$(echo $*)
-  ALL=$(printf "%s" "$ALL" | base64 -d)
+  ALL=$(echo $@)
+#  ALL=$(printf "%s" "$ALL" | base64 -d)  # not in AIX \ Solaris10 \ old linux
+  ALL=$(printf "%s" "$ALL" | base64_decode)
   set -- $ALL
-  ALL="$*"
+  ALL="$@"
   _P1_="$1"
 else
-  ALL=$(echo $*)
+  ALL=$(echo $@)
 fi
 sid=$(awk -F/ '{print $1}' <<< "$_P1_")
 PDB=$(awk -F/ '{print $2}' <<< "$_P1_")
@@ -31,72 +49,82 @@ ORACLE_SID=$sid
 export ORACLE_SID
 shift
 ID="$1"
-ALL="$*"
+ALL="$@"
 # ALL=$(echo $*)
 # echo "tpi ALL: "$ALL
 
 NLS_LANG=AMERICAN_AMERICA.AL32UTF8
 export NLS_LANG
 
+export TERM=xterm
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+yellow=$(tput setaf 3)
+blue=$(tput setaf 4)
+magneta=$(tput setaf 5)
+cyan=$(tput setaf 6)
+reset=$(tput sgr0)
+
+
 init_msg()
 {
-  a__="[in=INST_ID] [con=CON_ID] \"\" - ACTIVE | a - Allsess | in - INACTIVE | k - KILLED | [access OBJECT] | P.SPID\S.SID\S.PROCESS [bind] [PEEKED_BINDS OUTLINE all ALLSTATS ADVANCED last adaptive PREDICATE partition] | p [param_name] ] - sess param info, p - from V\$SES_OPTIMIZER_ENV by [param_name]"
-  p__="p [FALSE] [PAR1 PAR2 ..] | ph [FALSE] [PARAMETER] | license | services | dir | acl | resource_limit | resumable - instance parameters or hidden parameters, [FALSE] - only changed parameters, gv\license - HWM sessions, gv\$services, dba_directories, dba_network_acls, gv\$resource_limit" 
-  db__="db [ nls|option|properties|fusage ] - gv\$instance, v\$database, dba_registry, dba_registry_sqlpatch, nls_database_paramters, v\$option, database_properties information" 
-  analyze__="analyze {gather|delete|set|lock}  {table TABLE_NAME OWNER [PERCENT] [NUMROWS NUMLBLKS]} | lock\unlock {partition TABLE_NAME OWNER PART_NAME} | {index INDEX_NAME OWNER [PERCENT] [NUMROWS NUMLBLKS NUMDIST]} | {schema SCHEMA} | database | {system [INTERVAL_MIN|stop|show]} | dictionary | fixed - operations with stats "
-  audit__="audit [logons [dd/mm/yy-HH:MI-HH:MI(hours)] | maxcon [dd/mm/yy-HH:MI-HH:MI(hours)] [CNT] | 1017 [dd/mm/yy-HH:MI-HH:MI(hours)] [USR] | obj [dd/mm/yy-HH:MI-HH:MI(hours)] [OBJ] ] - DDL users audit, logons - all logon, maxcon - max of db connections above CNT (def 100) for a period (def 1H), 1017 - failed login, obj - obj audit"
-  health__="health [in=INST_ID] [con=CON_ID] [cr | hot] - Database health parameters (Hit Ratio / Get Misses cache, System Events Waits, Consistent Read buffers in SGA | Hot buffers)"
-  sga__="sga - SGA information" 
-  pga__="pga [usage | pga_detail_get P.pid | pga_detail_cancel P.pid | pga_detail_show P.pid ] - PGA sessions information, pga_detail_show - V\$PROCESS_MEMORY_DETAIL"
-  size__="size [days | tbs [free [SORT_COL_NAME]] | temp | sysaux | df [io|usage|lastseg[TBS]] | maxseg TBS | maxext | fra | rbin [all] | grows (days)] - Size of DB+archl (7 def), tablespaces, datafiles (HWM in DF+script), maxseg in all DB\TBS, FRA info + db_recovery_file_dest usage; recyclebin; ( exec 'alter system set \"_enable_space_preallocation\"=0' )"
-  arch__="arch [seq [SEQ|dd/mm/yy-HH:MI] | scn [SCN|dd/mm/yy-HH:MI]] - archivelog, V\$LOG V\$ARCHIVE_DEST V\$ARCHIVE_DEST_STATUS GV\$MANAGED_STANDBY V\$STANDBY_LOG information"
-  redo__="redo [logs] - redo information" 
-  undo__="undo [recovery | tuning] - undo active transaction information, recovery information, tuning MAXQUERYLEN from DBA_HIST_UNDOSTAT"
-  sesstat__="sesstat [ list | sess SESS_ID [STATNAME] | STATNAME ] - sesstat information, where 'list' - STATISTIC NAMES, sess SESS_ID - sesstat for session, STATNAME - name particular of STATISTIC NAME" 
-  sysstat__="sysstat [ % | STATNAME ] - sysstat information, by startup, by day, by hours, by min, by sec" 
-  segstat__="segstat [SEGMENT_NAME] [OWNER] - top 20 segments statistics information from V\$SEGMENT_STATISTICS or SEGMENT_NAME statistics" 
-  o__="o OBJECT_NAME | OBJECT_ID | invalid [OWNER] | ddl [last N hours] | depend REFERENCED_OBJ_NAME | depend last_analyzed HH OBJ_NAME [OWNER] - Show what REFERENCED_OBJ_NAME was last analyzed in depended OBJ_NAME   - dba_objects information" 
-  s__="s SEGMENT_NAME [OWNER] | nonsystem - dba_segments information, nonsystem - NON-SYSTEM objects detected in SYSTEM tablespace" 
-  e__="e SEGMENT_NAME [OWNER] - dba_extents, dba_tablespaces, dba_data_files - Extents in datafiles information" 
-  t__="t [part] TABLE_NAME [OWNER] | last_analyzed HH [OWNER] | chained [PERCENT] | modifications [TABLE_NAME [OWNER]] - dba_tables, dba_part_tables, dba_tab_partitions, dba_tab_subpartitions, dba_tab_modifications information" 
-  mv__="mv - dba_mviews, dba_mview_logs, dba_refresh_children  matview information" 
-  i__="i [part] INDEX_NAME [OWNER] | candidate [TABLE_NAME|%] [TABLE_OWNER] [TBS] | last_analyzed HH [OWNER] | rebuild TABLE_NAME OWNER [ONLINE [PARALLEL N]] - dba_indexes, dba_part_indexes, dba_ind_partitions, dba_ind_subpartitions information, candidate to rebulld" 
-  l__="l [LOB_NAME] | [table TABLE OWNER COLUMN_NAME] - dba_lobs information, table - show actual size of LOB segmsnt and unused segment information and cmd for rebuld   -- sum(dbms_lob.getlength(CLOB_COL)/1024/1024) " 
-  c__="c [ CONSTRAINT_NAME [OWNER] | T TABLE_NAME OWNER | PK PRIMARY_KEY OWNER | FK (TABLE_NAME [OWNER] | %) ]  - dba_constraints, dba_cons_columns information, PK - Who refs to the PK, FK - Tables with non-indexed foreign keys" 
-  u__="u [ USERNAME [{dba_sys_privs|dba_tab_privs|dba_role_privs} PRIVILEGE|OBJECT|ROLE] ]  - dba_users - for USER or ROLE information from dba_sys_privs, dba_tab_privs, dba_role_privs view for PRIVILEGE|OBJECT|ROLE"
-  r__="r [ {role_sys_privs|role_tab_privs|role_role_privs} ROLE PRIVILEGE|OBJECT|ROLE ] - role_sys_privs role_tab_privs role_role_privs information for ROLE and PRIVILEGE|OBJECT|ROLE"
-  trg__="trg [ \"\" | [TRIGGER_NAME] [TRIGGER_OWNER] | t [TABLE_NAME] [TABLE_OWNER]  ]  - dba_triggers information, \"\" - LOGON or STARTUP triggers"
-  profile__="profile [PROFILE] - profiles information"
-  links__="links [LINK_NAME | wholink] - links information, wholink - who is querying via dblink. The GTXID will match for both databases"
-  latch__="latch - latch information"
-  lock__="lock [chain | lib | obj OBJECT_NAME | distrib [commit TRX | rollback TRX | purge TRX (for commited,collecting,prepared) | hardpurge TRX | hardpurge-ORA-02075-prepared TRX ] ] - blocking locks information, lib - library lock information"
-  bind__="bind [ SQL | SQL_ID ] - V\$SQL_BIND_CAPTURE for SQL_ID or sql not using bind variable information"
-  pipe__="pipe [PIPE_NAME] - pipes information, read PIPE_NAME" 
-  longops__="longops [SID | MESSAGE | rman] - active session longops for SID or MESSAGE or rman backup elapsed time" 
-  scheduler__="${red}scheduler${reset} [JOB_NAME | run JOB_NAME [hours] | log JOB_NAME [hours] | autotask ] - dba_scheduler_jobs information, log | run JOB_NAME [hours] - dba_scheduler_job_log | dba_scheduler_job_run_details for JOB_NAME in last [hours]" 
-  job__="job [run] [JOB_ID|SID|SPID|OWNER] - dba_jobs, dba_jobs_running information" 
-  rman__="rman [DAYS|dftb|cfg|last|arch [SEQUENCE] | recovery] - RMAN backups | df_to_backup | v\$rman_configuration information | last - hours passed since the last backup | arch - last backup archivelog"
-  get_ddl__="get_ddl TYPE OBJECT (OWNER) - dbms_metadata.get_ddl extract dml, OBJECT - may be % or %mask%"
-  trace__="trace [SID SERIAL LEVEL] [db {on|off}] - Trace for session, Level: 0-Disable, 1-Enable, 4-Enable with Binds, 8-Enable with Waits, 12-4+8, Trace all db sessions: on \ off"
-  kill__="kill [SID SERIAL INST_ID] | [idle NUM_HOURS] | [\"where S.USERNAME='SomeUser'\"] | [ zombie_unix_list | zombie_win_list ] - Kill session, idle 5 - kill idle sessions for 5 hours and more, zombie_unix_list - only show zombie"
-  exec__="exec [pt] \"sql_statement\" - execute \"SQL Commands\"  Note: Must be escaped with \\ character: \$.   ( pt \"select * from gv\\\$sql_shared_cursor  where sql_id='bpq3apk5q2c6z'\"  )     ( exec  'alter system set \"_ash_sample_all\"=true' )"
-  alert__="alert [num] - tail -num alert_[sid].log, default num = 100"
-  report__="report [ash {text|html} -60] -for last hour, [awr {text|html} dd/mm/yy-HH:MI-HH:MI(hours)], [awrdd {text|html} dd1/mm/yy-HH:MI-HH:MI(hours) dd2/mm/yy-HH:MI-HH:MI(hours)], [awrsql {text|html} dd/mm/yy-HH:MI-HH:MI(hours) sql_id], [addm text dd/mm/yy-HH:MI-HH:MI(hours)] - oracle reports"
-  corrupt__="corrupt [{rowid|dba} ID] | [fb (FILE) (BLOCK)] - Find object by ROWID, Find object by DBA, Find DB Object in dba_extents by file/block, v\$database_block_corruption v\$nonlogged_block information"
-  sql__="sql [ [top] | [SQL_ID | SQLTEXT] | [hv HASH_VALUE] | [plan SQL_ID] | [expand SQL_ID] | [sqlarea_vercnt] | [child_reason SQL_ID] | sql_bind_metadata SQL_ID | sql_shared_cursor SQL_ID | [sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] ] - Find out sql_id by SQLTEXT\SQL_ID from V\$SQL, plan from VSQL_PLAN by sql_id, sqlstat from V\$SQLSTAT by sql_id, GV$\SQLAREA"
-  ash__="ash [in=INST_ID] [con=CON_ID]  [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [\"FIELD CONDITIONS\"] | sql [top [pga [sess]|EVENT]] [all [EVENT]] [SQL_ID|SQL_TEXT] | plan SQL_ID [fmt display plan] | sqlstat [SQL_ID|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [executions] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | waitchains [\"username||':'||program2||':'||sql_opname||':'||event2\" \"event2 like 'enq: TX %'\"] | temp [sizeMb] | (umc)chart ] - Top SQL, Events, Sessions GV\$ACTIVE_SESSION_HISTORY"
-  dhash__="dhash [in=INST_ID] [con=CON_ID] [dd/mm/yy-HH:MI-HH:MI(hours) - def1h] [ event | sess [SID SERIAL# [all|nosqlid|tchcnt] | SQL_ID] | where [\"FIELD CONDITIONS\"] | sql [top [pga [sess]|EVENT]] [all [EVENT]] [SQL_ID|SQL_TEXT] | plan SQL_ID PHV [fmt display plan] | sqlstat [SQL_ID|pio|lio|cpu|exe|ela|fch|sor|iow|row] [executions] | cmpsql [PERCENT | dd/mm/yy-HH:MI-HH:MI [PERCENT]] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | waitchains [\"username||':'||program2||':'||sql_opname||':'||event2\" \"event2 like 'enq: TX %'\"] | growseg [TBS] [SEGMENT] | segstat [SEGMENT] [OWNER] [SORT_COL] | temp [sizeMb] | (umc)chart | iostat [df|redo|ctl|temp|arch|other] ] | awrinfo - Top SQL, Events, Sessions DBA_HIST_ACTIVE_SESS_HISTORY"
-  oratop__="oratop [ h [in=INST_ID] [con=CON_ID] | dhsh [in=INST_ID] [con=CON_ID] [dd/mm/yy-HH:MI-HH:MI(hours) - def3d] ] - Database and Instance parameters, h - history V\$SYSMETRIC_HISTORY V\$ACTIVE_SESSION_HISTORY, dhsh - dba_hist_sysmetric_history dba_hist_snapshot"
-  spm__="spm [days def7 - baselines] [find %|SQL_HANDLE SQL_PLAN_NAME] [ blplan %|SQL_HANDLE (PLAN_NAME) | blexec [count] | bllpfcc SQL_ID PLAN_HASH_VALUE [SQL_HANDLE] | bllpfawr SQL_ID PLAN_HASH_VALUE MIN_SNAP_ID MAX_SNAP_ID | blchattr SQL_HANDLE PLAN_NAME ATTR VALUE | blchplan NEW_SQL_ID NEW_PHV OLD_SQLSET_NAME | blevolve SQL_HANDLE PLAN_NAME | sqlset_list SQLSET_NAME OWNER | sqlset_plan SQLSET_NAME SQL_ID [PHV] | sqlset_drop SQLSET_NAME | bldrop SQL_HANDLE (PLAN_NAME) | sqltune [SQL_ID | awr SQL_ID begin_snap end_snap]  | sqltune_report TASK_NAME | sqltune_accept TASK_NAME | sqltune_create_plan_bl TASK_NAME OWNER PLAN_HASH_VALUE | sqltune_list [TASK_NAME] [cnt] | sqltune_drop TASK_NAME | sql_profiles | import_sql_profile SQL_ID_SRC PHV_SRC SQL_ID_TARGET | sql_profile_chattr TASK_NAME ATTR VALUE  | sql_profile_drop NAME | hints profile|baseline|patch NAME | sqlpatch_list | sqlpatch_create SQL_ID \"HINTS\" | sqlpatch_alter PATCHNAME enable|disable | sqlpatch_drop PATCHNAME | report_sql_monitor SQL_ID ] - in sqlpatch_create esape with \\ only \$"
+  a__="${cyan}\"\"${reset} - ACTIVE | ${cyan}a${reset} - Allsess | ${cyan}in${reset} - INACTIVE | ${cyan}k${reset} - KILLED | ${cyan}(P.SPID|S.SID|S.PROCESS)${reset} [ [bind] ([PEEKED_BINDS OUTLINE ALL ALLSTATS ADVANCED LAST ADAPTIVE PREDICATE PARTITION]) | open_cursor | db_object_cache <HASH_VALUE> | ses_optimizer_env [<PARAM_NAME>] ] | [${cyan}access${reset} <OBJECT>] - all sessions \ sessions details information"
+  p__="${cyan}p${reset} [{FALSE}] [<PARAM>] | ${cyan}ph${reset} [{FALSE}] [<PARAM>] | ${cyan}license${reset} | ${cyan}services${reset} | ${cyan}dir${reset} | ${cyan}acl${reset} | ${cyan}resource_limit${reset} | ${cyan}resumable${reset} - instance parameters or hidden parameters, [{FALSE}] - only changed parameters, gv\license - HWM sessions, gv\$services, dba_directories, dba_network_acls, gv\$resource_limit" 
+  db__="${cyan}db${reset} [ nls|option|properties|fusage ] - gv\$instance, v\$database, dba_registry, dba_registry_sqlpatch, nls_database_paramters, v\$option, database_properties information" 
+  analyze__="${cyan}analyze${reset} {gather|delete|set|lock|unlock}  {table <TABLE_NAME> <OWNER> [<PERCENT>] [<NUMROWS> <NUMLBLKS>]} | {index <INDEX_NAME> <OWNER> [<PERCENT>] [<NUMROWS> <NUMLBLKS> <NUMDIST>]} | {schema <SCHEMA>} | lock\unlock {table|partition|schema <TABLE_NAME> <OWNER> <PART_NAME>} | database | {system [<INTERVAL_MIN>|stop|show]} | dictionary | fixed - operations with stats "
+  audit__="${cyan}audit${reset} [<DD/MM/YY-HH:MI-[HH:MI|NH]> -def1H] [logons [<USER>] | maxcon [<CNT> -def100] | 1017 [<USR>] | obj [<OBJ>] ] - DDL users audit, logons - all logon, maxcon - max of db connections above CNT, 1017 - failed login, obj - <OBJ> audit"
+  health__="${cyan}health${reset} [cr | hot] - Database health parameters (Hit Ratio / Get Misses cache, System Events Waits, Consistent Read buffers in SGA | Hot buffers)"
+  sga__="${cyan}sga${reset} - SGA information" 
+  pga__="${cyan}pga${reset} [usage | pga_detail_get <P.PID> | pga_detail_cancel <P.PID> | pga_detail_show <P.PID> ] - PGA sessions information, pga_detail_show - V\$PROCESS_MEMORY_DETAIL"
+  size__="${cyan}size${reset} [[<DAYS>] | tbs [free [<SORT_COL_NAME>]] | temp | sysaux | df [io|usage|lastseg [<TBS>]] | maxseg <TBS> | maxext | fra | rbin [all] | grows <DAYS>] - Size of DB+archl (7 def), tablespaces, datafiles (HWM in DF+script), maxseg in all DB\TBS, FRA info + db_recovery_file_dest usage; recyclebin; ( exec 'alter system set \"_enable_space_preallocation\"=0' )"
+  arch__="${cyan}arch${reset} [seq [<SEQ>|<DD/MM/YY-HH:MI>] | scn [<SCN>|<DD/MM/YY-HH:MI>]] - archivelog, V\$LOG V\$ARCHIVE_DEST V\$ARCHIVE_DEST_STATUS GV\$MANAGED_STANDBY V\$STANDBY_LOG information"
+  redo__="${cyan}redo${reset} [logs] - redo information" 
+  undo__="${cyan}undo${reset} [recovery | tuning <UNDO_TBSNAME> ] - undo active transaction information, recovery information, tuning MAXQUERYLEN from DBA_HIST_UNDOSTAT"
+  sesstat__="${cyan}sesstat${reset} [ list | sess <SESS_ID> [<STATNAME>] | <STATNAME> ] - sesstat information, where 'list' - STATISTIC NAMES, sess SESS_ID - sesstat for session, STATNAME - name particular of STATISTIC NAME" 
+  sysstat__="${cyan}sysstat${reset} [ % | <STATNAME> ] - sysstat information, by startup, by day, by hours, by min, by sec" 
+  segstat__="${cyan}segstat${reset} [<SEGMENT_NAME>] [<OWNER>] - top 20 segments statistics information from V\$SEGMENT_STATISTICS or SEGMENT_NAME statistics" 
+  o__="${cyan}o${reset} (<OBJECT_NAME> | <OBJECT_ID>) | invalid [<OWNER>] | ddl [<LAST N HOURS>] | depends {on|is} <OBJ_NAME> <OWNER> | depends last_analyzed <HH> <OBJ_NAME> <OWNER> - Show what REFERENCED_OBJ_NAME was last analyzed in depended OBJ_NAME   - dba_objects information" 
+  s__="${cyan}s${reset} <SEGMENT_NAME> [<OWNER>] | nonsystem - dba_segments information, nonsystem - NON-SYSTEM objects detected in SYSTEM tablespace" 
+  e__="${cyan}e${reset} <SEGMENT_NAME> [<OWNER>] - dba_extents, dba_tablespaces, dba_data_files - Extents in datafiles information" 
+  t__="${cyan}t${reset} {part}] <TABLE_NAME> [<OWNER>] | last_analyzed <HH> [<OWNER>] | chained [<PERCENT>] | modifications [<TABLE_NAME> [<OWNER>]] - dba_tables, dba_part_tables, dba_tab_partitions, dba_tab_subpartitions, dba_tab_modifications information" 
+  mv__="${cyan}mv${reset} - dba_mviews, dba_mview_logs, dba_refresh_children  matview information" 
+  i__="${cyan}i${reset} {part}] <INDEX_NAME> [<OWNER>] | candidate [<TABLE_NAME>|%] [<TABLE_OWNER>] [<TBS>] | last_analyzed <HH> [<OWNER>] | rebuild <TABLE_NAME> <OWNER> [<ONLINE> [<PARALLEL N>]] | cost <\"CREATE INDEX ... ON ...\"> | usage [on|off|show|segstat] [<TABLE_NAME>|%] [<OWNER>] - dba_indexes, dba_part_indexes, dba_ind_partitions, dba_ind_subpartitions information, candidate to rebulld" 
+  l__="${cyan}l${reset} [ <LOB_NAME>] | [t <TABLE> <OWNER> <COLUMN_NAME> ] - dba_lobs information, table - show actual size of LOB segmsnt and unused segment information and cmd for rebuld   -- sum(dbms_lob.getlength(CLOB_COL)/1024/1024) " 
+  c__="${cyan}c${reset} [ <CONSTRAINT_NAME> [<OWNER>] | t <TABLE_NAME> <OWNER> | pk <PRIMARY_KEY> <OWNER> | fk (<TABLE_NAME> [<OWNER>] | %) ]  - dba_constraints, dba_cons_columns information, PK - Who refs to the PK, FK - Tables with non-indexed foreign keys" 
+  u__="${cyan}u${reset} [ <USERNAME> [{dba_sys_privs|dba_tab_privs|dba_role_privs} <PRIVILEGE>|<OBJECT>|<ROLE>] ]  - dba_users - for USER or ROLE information from dba_sys_privs, dba_tab_privs, dba_role_privs view for PRIVILEGE|OBJECT|ROLE"
+  r__="${cyan}r${reset} [ {role_sys_privs|role_tab_privs|role_role_privs} <ROLE> <PRIVILEGE>|<OBJECT>|<ROLE> ] - role_sys_privs role_tab_privs role_role_privs information for ROLE and PRIVILEGE|OBJECT|ROLE"
+  trg__="${cyan}trg${reset} [ \"\" | [<TRIGGER_NAME>] [<TRIGGER_OWNER>] | t [<TABLE_NAME>] [<TABLE_OWNER>]  ]  - dba_triggers information, \"\" - LOGON or STARTUP triggers"
+  profile__="${cyan}profile${reset} [<PROFILE>] - profiles information"
+  links__="${cyan}links${reset} [<LINK_NAME> | wholink] - links information, wholink - who is querying via dblink. The GTXID will match for both databases"
+  latch__="${cyan}latch${reset} - latch information"
+  lock__="${cyan}lock${reset} [chain | lib | lib2 | obj <OBJECT_NAME> | distrib [commit <TRX> | rollback <TRX> | purge <TRX> (-for commited,collecting,prepared) | hardpurge <TRX> | hardpurge-ORA-02075-prepared <TRX> ] ] - blocking locks information, lib lib2 - library lock information"
+  bind__="${cyan}bind${reset} [<SQL> | <SQL_ID>] - V\$SQL_BIND_CAPTURE for SQL_ID or sql not using bind variable information"
+  pipe__="${cyan}pipe${reset} [<PIPE_NAME>] - pipes information, read PIPE_NAME" 
+  longops__="${cyan}longops${reset} [<SID> | <MESSAGE>] - active session longops for SID or MESSAGE" 
+  scheduler__="${cyan}scheduler${reset} [<JOB_NAME> | run <JOB_NAME> [<HOURS>] | log <JOB_NAME> [<HOURS>] | autotask ] - dba_scheduler_jobs information, log | run - dba_scheduler_job_log | dba_scheduler_job_run_details for <JOB_NAME> in last [<HOURS>]" 
+  job__="${cyan}job${reset} [run] | [<JOB_ID>|<SID>|<SPID>|<OWNER>] - dba_jobs, dba_jobs_running information" 
+  rman__="${cyan}rman${reset} [ [<DAYS>] | dftb | cfg | last | arch [<SEQUENCE>] | recovery | current ] - RMAN backups | df_to_backup | v\$rman_configuration information | last - hours passed since the last backup | arch - last backup archivelog | recovery - gv\$recovery_progress | current - current backup process and elapsed time"
+  get_ddl__="${cyan}get_ddl${reset} <TYPE> <OBJECT> <OWNER> - dbms_metadata.get_ddl extract dml, OBJECT - may be % or %mask%"
+  trace__="${cyan}trace${reset} [<SID> <SERIAL> <LEVEL>] | [db {on|off}] - Trace for session, Level: 0-Disable, 1-Enable, 4-Enable with Binds, 8-Enable with Waits, 12-4+8, Trace all db sessions: on \ off"
+  kill__="${cyan}kill${reset} [<SID> <SERIAL> <INST_ID>] | [idle <NUM_HOURS>] | [\"WHERE S.USERNAME='SomeUser'\"] | [ zombie_unix_list | zombie_win_list ] - Kill session, idle 5 - kill idle sessions for 5 hours and more, zombie_unix_list - only show zombie"
+  exec__="${cyan}exec${reset} [pt] <\"SQL_STATEMENT_OR_!_OSCMD\"> - execute \"SQL Commands\"  Note: Must be escaped with \\ character: \$.   ( pt \"select * from gv\\\$sql_shared_cursor  where sql_id='bpq3apk5q2c6z'\"  )     ( exec  'alter system set \"_ash_sample_all\"=true' )  Use '\\n' for new line"
+  alert__="${cyan}alert${reset} [<NUM>] - tail -num alert_[sid].log, default num = 100"
+  report__="${cyan}report${reset} [ash {text|html} -60] -for last hour, [awr {text|html} DD/MM/YY-HH:MI-HH:MI-[HH:MI|NH]], [awrdd {text|html} dd1/mm/yy-HH:MI-HH:MI(hours) dd2/mm/yy-HH:MI-HH:MI(hours)], [awrsql {text|html} dd/mm/yy-HH:MI-HH:MI(hours) sql_id], [addm text dd/mm/yy-HH:MI-HH:MI(hours)] - oracle reports"
+  corrupt__="${cyan}corrupt${reset} [{rowid|dba} <ID>] | [fb <FILE> <BLOCK>] - Find object by ROWID, Find object by DBA, Find DB Object in dba_extents by file/block, v\$database_block_corruption v\$nonlogged_block information"
+  sql__="${cyan}sql${reset} [ [top] | [<SQL_ID> | <SQLTEXT>] | [hv <HASH_VALUE>] | [plan <SQL_ID>] | [expand <SQL_ID>] | [sqlarea_vercnt] | [child_reason <SQL_ID>] | sql_bind_metadata <SQL_ID> | sql_shared_cursor <SQL_ID> | [sqlstat [<SQL_ID>|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [<EXECUTIONS>] ] - Find out sql_id by SQLTEXT\SQL_ID from V\$SQL, plan from VSQL_PLAN by sql_id, sqlstat from V\$SQLSTAT by sql_id, GV$\SQLAREA"
+  ash__="${cyan}ash${reset} [in=<INST_ID>] [con=<CON_ID>]  [<DD/MM/YY-HH:MI-HH:MI-[HH:MI|NH]> -def1H] [event] | sess [<SID> <SERIAL#> [all|nosqlid|tchcnt] | <SQL_ID>] | where <\"FIELD CONDITIONS\"> | sql [top [<EVENT> | pga [sess]] ] [all [<EVENT>]] [<<SQL_ID>|<SQL_TEXT>] | plan <SQL_ID> [<FMT>] | sqlstat [<SQL_ID>|par|inv|fch|sor|exe|pio|lio|row|cpu|ela|iow|mem] [<EXECUTIONS>] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | waitchains [<\"username||':'||program2||':'||sql_opname||':'||event2\" \"event2 like 'enq: TX %'\">] | temp [<SizeMb>] | uchart | mchart | cchart ] - Top SQL, Events, Sessions GV\$ACTIVE_SESSION_HISTORY"
+  dhash__="${cyan}dhash${reset} [in=<INST_ID>] [con=<CON_ID>] [<DD/MM/YY-HH:MI-HH:MI-[HH:MI|NH>]] [event] | sess [<SID> <SERIAL#> [all|nosqlid|tchcnt] | <SQL_ID>] | where <\"FIELD CONDITIONS\"> | sql [top [<EVENT> | pga [sess]] ] [all [<EVENT>]] [<SQL_ID>|<SQL_TEXT>] | plan <SQL_ID> <PHV> [<FMT>] | sqlstat [<SQL_ID>|pio|lio|cpu|exe|ela|fch|sor|iow|row|sha] [EXECUTIONS] | cmpsql [<PERCENT> | <DD/MM/YY-HH:MI-HH:MI> [<PERCENT>]] | insection [username|service|machine|program,module,action|sql_opname,sql_plan_operation,sql_plan_options|PLSQL_ENTRY_OBJECT_ID|event|wait_class] | waitchains [<\"username||':'||program2||':'||sql_opname||':'||event2\" \"event2 like 'enq: TX %'\">] | growseg [<TBS>] [<SEGMENT>] | segstat [<SEGMENT>] [<OWNER>] [<SORT_COL>] | temp [<SizeMb>] | uchart | mchart | cchart | iostat [df|redo|ctl|temp|arch|other] ] | awrinfo - Top SQL, Events, Sessions DBA_HIST_ACTIVE_SESS_HISTORY"
+  oratop__="${cyan}oratop${reset} [ h [in=<INST_ID>] [con=<CON_ID>] | dhsh [in=<INST_ID>] [con=<CON_ID>] [<DD/MM/YY-HH:MI-HH:MI-[HH:MI|NH]]> -def3d]  - Database and Instance parameters, h - history V\$SYSMETRIC_HISTORY V\$ACTIVE_SESSION_HISTORY, dhsh - dba_hist_sysmetric_history dba_hist_snapshot"
+  spm__="${cyan}spm${reset} [<DAYS> -def7] [find %|<SQL_HANDLE> <SQL_PLAN_NAME>] [ blplan %|<SQL_HANDLE> <PLAN_NAME> | blexec [<CNT>] | bllpfcc <SQL_ID> <PLAN_HASH_VALUE> [<SQL_HANDLE>] | bllpfawr <SQL_ID> <PLAN_HASH_VALUE> <MIN_SNAP_ID> <MAX_SNAP_ID> | blchattr <SQL_HANDLE> <PLAN_NAME> <ATTR> <VALUE> | blchplan <NEW_SQL_ID> <NEW_PHV> <OLD_SQLSET_NAME> | blevolve <SQL_HANDLE> <PLAN_NAME> | sqlset_list <SQLSET_NAME> <OWNER> | sqlset_plan <SQLSET_NAME> <SQL_ID> [<PHV>] | sqlset_drop <SQLSET_NAME> | bldrop <SQL_HANDLE> <PLAN_NAME> | sqltune [<SQL_ID>|awr <SQL_ID> <BEGIN_SNAP> <END_SNAP>] | sqltune_report <TASK_NAME> | sqltune_accept <TASK_NAME> | sqltune_create_plan_bl <TASK_NAME> <OWNER> <PLAN_HASH_VALUE> | sqltune_list [<TASK_NAME>] [<CNT>] | sqltune_drop <TASK_NAME> | sql_profiles | import_sql_profile <SQL_ID_SRC> <PHV_SRC> <SQL_ID_TARGET> | sql_profile_chattr <TASK_NAME> <ATTR> <VALUE> | sql_profile_drop <NAME> | hints profile|baseline|patch <NAME> | sqlpatch_list | sqlpatch_create <SQL_ID> \"HINTS\" | sqlpatch_alter <PATCHNAME> enable|disable | sqlpatch_drop <PATCHNAME> | report_sql_monitor <SQL_ID> ] - in sqlpatch_create esape with \\ only \$"
 }
 
 init_msg
 
 if [ -z "$sid" ]; then
-  env | grep ORA
+  env | grep ORA | egrep -v PROMPT
   ps -ef | grep [p]mon
-  echo "Usage: $0 <DBSID/PDB> [SPID\SID\OS_client_PID] [a|in|k] [p|ph [FALSE] <param>] [license] [services] [dir] [resource_limit] [resumable] | db | analyze | audit | health | sga | pga | size | arch | redo | undo | sesstat | sysstat | segstat | o . | s . | e . | t . | i . | l . | c . | u . | r. | trg . | profile | links | latch | lock | bind | pipe | longops | scheduler | job | rman | get_ddl | trace | kill | exec | alert | report ash/awr | corrupt | sql | ash | dhash | oratop | spm"
-  echo -e $a__"\n"$p__"\n"$db__"\n"$analyze__"\n"$audit__"\n"$health__"\n"$sga__"\n"$pga__"\n"$size__"\n"$arch__"\n"$redo__"\n"$undo__"\n"$sesstat__"\n"$sysstat__"\n"$segstat__"\n"$o__"\n"$s__"\n"$e__"\n"$t__"\n"$mv__"\n"$i__"\n"$l__"\n"$c__"\n"$u__"\n"$r__"\n"$trg__"\n"$profile__"\n"$links__"\n"$latch__"\n"$lock__"\n"$bind__"\n"$pipe__"\n"$longops__"\n"$scheduler__"\n"$job__"\n"$rman__"\n"$get_ddl__"\n"$trace__"\n"$kill__"\n"$exec__"\n"$alert__"\n"$report__"\n"$corrupt__"\n"$sql__"\n"$ash__"\n"$dhash__"\n"$oratop__"\n"$spm__"\n"
+  echo "${green}Usage:${reset} $0 [{tpibase64}] <ORACLE_SID[/PDB]> [<USER/PASS@TNS>] [in=<INST_ID>] [con=<CON_ID>]  [<${cyan}COMMAND${reset} [ ARGS... | % ]>]"
+  printf '%s\n' "$a__" "$p__" "$db__" "$analyze__" "$audit__" "$health__" "$sga__" "$pga__" "$size__" "$arch__" "$redo__" "$undo__" "$sesstat__" "$sysstat__" "$segstat__" "$o__" "$s__" "$e__" "$t__" "$mv__" "$i__" "$l__" "$c__" "$u__" "$r__" "$trg__" "$profile__" "$links__" "$latch__" "$lock__" "$bind__" "$pipe__" "$longops__" "$scheduler__" "$job__" "$rman__" "$get_ddl__" "$trace__" "$kill__" "$exec__" "$alert__" "$report__" "$corrupt__" "$sql__" "$ash__" "$dhash__" "$oratop__" "$spm__"
   exit
   echo "NOT EXIT"
 fi
@@ -143,6 +171,7 @@ exception
         RAISE;
 end;
 "
+
 
 dec2ascii()
 {
@@ -389,10 +418,27 @@ process_info()
 {
 P1_=$(echo $* | awk '{print $1}')
 P2_=$(echo $* | awk '{print $2}')
+P3_=$(echo $* | awk '{print $3}')
 case "$P2_" in
 #    p)  P3_=$(echo $* | awk '{print $3}' | tr '[:upper:]' '[:lower:]') ;;
     p)  P3_=$(to_lower $(echo $* | awk '{print $3}')) ;;
- bind)  CODE11_2_BIND="-- Binds for verison 10g and above
+    open_cursor)  SQL_OC1="QUERY VARCHAR2(4000);
+                 $PRINT_TABLE"
+	SQL_OC2="select 'select * from v\$open_cursor where sid = '||s.sid into QUERY from v\$session where s.sid=v_sid and rownum=1;
+	dbms_output.put_line('V\$OPEN_CURSOR:');
+	print_table( QUERY );"
+        shift; shift; ALL="$*"
+        ;;
+    db_object_cache)
+	# WAITED SHORT TIME: library cache: mutex X, idn=241751760, value=0, where=1  ;  241751760 <- hash_value in  v$db_object_cache
+	    SQL_DOC1="QUERY VARCHAR2(4000);
+                 $PRINT_TABLE"
+        SQL_DOC2="QUERY:='select * from v\$db_object_cache where hash_value = $P3_';
+        dbms_output.put_line('V\$DB_OBJECT_CACHE:');
+        print_table( QUERY );"
+        shift; shift; shift; ALL="$*"
+        ;;
+    bind)  CODE11_2_BIND="-- Binds for verison 10g and above
         for c1 in ( select distinct sql_id, name, VALUE_STRING from V\$SQL_BIND_CAPTURE where sql_id=s.sql_id and hash_value=s.sql_hash_value and child_number=s.sql_child_number order by 2 ) loop
           dbms_output.put_line('V\$SQL_BIND_CAPTURE:   NAME: '|| c1.name ||'  VALUE: '||c1.VALUE_STRING);
         end loop; "
@@ -445,7 +491,7 @@ case "$(db_version)" in
 esac
 #
 case "$P2_" in
-p)
+ses_optimizer_env)
 $SP <<EOF >$LOGF
 set serveroutput on size 500000
 set echo off feed off veri off tab off
@@ -469,6 +515,8 @@ DECLARE
   v_sid number;
   s sys.v_\$session%ROWTYPE;
   p sys.v_\$process%ROWTYPE;
+  $SQL_OC1
+  $SQL_DOC1
 BEGIN
   select '$ID' into id from dual;
   begin
@@ -503,18 +551,18 @@ BEGIN
   end;
 
   dbms_output.put_line('===============================================================================');
-  dbms_output.put_line('S.sid / S.serial#                      : '|| s.sid||'  '||s.serial#);
-  dbms_output.put_line('P.spid / P.program / Parent SID        : '|| p.spid||' / '||p.program || ' / ' || to_number(substr(to_char(s.ownerid, 'XXXXXXXX'),length(to_char(s.ownerid, 'XXXXXXXX'))-3 ),'XXXX') ); 
-  dbms_output.put_line('P.pid / S.process / S.audsid           : '|| p.pid||' / ' ||s.process || ' / ' || s.audsid);
-  dbms_output.put_line('S.terminal / P.terminal                : '|| s.terminal || ' / ' || p.terminal);
-  dbms_output.put_line('S.username / S.osuser / S.machine      : '|| s.username || ' / ' ||  s.osuser||' / '||s.machine);
-  dbms_output.put_line('S.program / S.module / S.action        : '|| s.program||' / '||s.module||' / '||s.action);
-  dbms_output.put_line('Object_name / PLSQL_ENTRY_OBJECT_ID    : '|| STR_);
-  dbms_output.put_line('S.status / S.servers / S.type          : '|| s.status||' / '||s.server||' / '||s.type);
-  dbms_output.put_line('Tran Active (S.taddr)                  : '|| nvl(s.taddr, 'NONE'));
-  dbms_output.put_line('S.logon_time                           : '|| to_char(s.logon_time, 'Dy HH24:MI:SS'));
-  dbms_output.put_line('S.last_call_et                         : '|| to_char(sysdate-(s.last_call_et/60/60/24), 'Dy HH24:MI:SS') || ' - ' || to_char(s.last_call_et/60, '9999990.0') || ' min');
-  dbms_output.put_line('S.lockwait / P.latchwait / P.latchspin : '|| nvl(s.lockwait, 'NONE')||' / '||nvl(p.latchwait, 'NONE') || ' / ' || nvl(p.latchspin, 'NONE'));
+  dbms_output.put_line('S.sid / S.serial#                       : '|| s.sid||'  '||s.serial#);
+  dbms_output.put_line('P.spid / P.program / Parent SID         : '|| p.spid||' / '||p.program || ' / ' || to_number(substr(to_char(s.ownerid, 'XXXXXXXX'),length(to_char(s.ownerid, 'XXXXXXXX'))-3 ),'XXXX') ); 
+  dbms_output.put_line('P.pid / S.process (->P.spid) / S.audsid : '|| p.pid||' / ' ||s.process || ' / ' || s.audsid);
+  dbms_output.put_line('S.terminal / P.terminal                 : '|| s.terminal || ' / ' || p.terminal);
+  dbms_output.put_line('S.username / S.osuser / S.machine       : '|| s.username || ' / ' ||  s.osuser||' / '||s.machine);
+  dbms_output.put_line('S.program / S.module / S.action         : '|| s.program||' / '||s.module||' / '||s.action);
+  dbms_output.put_line('Object_name / PLSQL_ENTRY_OBJECT_ID     : '|| STR_);
+  dbms_output.put_line('S.status / S.servers / S.type           : '|| s.status||' / '||s.server||' / '||s.type);
+  dbms_output.put_line('Tran Active (S.taddr)                   : '|| nvl(s.taddr, 'NONE'));
+  dbms_output.put_line('S.logon_time                            : '|| to_char(s.logon_time, 'Dy HH24:MI:SS'));
+  dbms_output.put_line('S.last_call_et                          : '|| to_char(sysdate-(s.last_call_et/60/60/24), 'Dy HH24:MI:SS') || ' - ' || to_char(s.last_call_et/60, '9999990.0') || ' min');
+  dbms_output.put_line('S.lockwait / P.latchwait / P.latchspin  : '|| nvl(s.lockwait, 'NONE')||' / '||nvl(p.latchwait, 'NONE') || ' / ' || nvl(p.latchspin, 'NONE'));
 
     for c1 in ( select w.*, case when event like '%latch%' then ', LatchName: '||l.name else '' end name  from sys.v_\$session_wait w, sys.v_\$latchname l where w.p2=l.latch#(+) and w.sid = s.sid) loop
     dbms_output.put_line(c1.state||': '||c1.event||', '||c1.p1text||'='||c1.p1||', '||c1.p2text||'='||c1.p2||', '||c1.p3text||'='||c1.p3||c1.name );
@@ -533,6 +581,8 @@ BEGIN
   for c1 in ( select * from sys.v_\$sqltext where HASH_VALUE = s.prev_hash_value order by piece) loop
     dbms_output.put_line(chr(32)||c1.sql_text);
   end loop;
+  $SQL_OC2
+  $SQL_DOC2
   dbms_output.put_line('===============================================================================');
 END;
 /
@@ -619,31 +669,152 @@ WHERE ROWNUM < 101;
 END
 ;;
 lib) $SP <<'END' > $LOGF
-set lines 230
-set echo off feed off veri off tab off pages 40
-column sid for 999999
-column serial# for 9999999
-column m for 9
-column r for 9
-column username for a10
-column status for a1
-column osuser for a13
-column machine for a15
-column program for a35
-column Object for a35
-column event for a25
-column s_w for 9999
-column spid for a16
-column logon_time for a20 wrap
-prompt "-- kglpnmod M  (0: no lock; 1: null; 2: shared; 3: exclusive)"
-SELECT /* +rule */ 'kill -9 '||pr.spid spid, s.sid, s.serial#, sw.event, sw.seconds_in_wait s_w,
-ob.kglnaown||'.'||ob.kglnaobj "Object", p.kglpnmod "M", p.kglpnreq "R",
-s.username,substr(s.status,1,1) status,s.osuser,s.machine,s.program,to_char(s.logon_time,'dd/mm/yyyy hh24:mi:ss') logon_time
-FROM x$kglpn p, sys.v_$session s, sys.v_$process pr, x$kglob ob, sys.v_$session_wait sw
-WHERE p.kglpnuse=s.saddr and pr.addr = s.paddr and ob.kglhdadr=p.kglpnhdl
---and (sw.event like 'lib%')
-and sw.event in ('library cache load lock','library cache lock','library cache pin','cursor: pin S wait on X','row cache lock')
-and sw.p1raw = ob.kglhdadr;
+--9i в одну строку holder and waiter
+set lines 250 pages 90 echo off feed off veri off tab off
+col kill_blocker_cmd for a15 heading "HOLD_KILL_CMD"
+col blocker_sid for 999999 heading "HOLD_SID"
+col blocker_ser# for 9999999 heading "HOLD_SER#"
+col blocker_user for a20 heading "HOLD_USER"
+col blocker_program for a20 heading "HOLD_PROG" trunc
+col hold_mode for a10
+col req_mode for a10
+col object_name for a30
+col kill_blocked_cmd for a15 heading "WAIT_KILL_CMD"
+col blocked_sid for 999999 heading "WAIT_SID"
+col blocked_ser# for 9999999 heading "WAIT_SER#"
+col blocked_user for a20 heading "WAIT_USER"
+col blocked_program for a20 heading "WAIT_PROG" trunc
+col wait_event for a30 heading "WAIT_EVENT"
+col secs_waiting for 9999 heading "S_W"
+SELECT
+    -- Информация о блокирующем (Blocker)
+    'kill -9 ' || b_proc.spid AS kill_blocker_cmd,
+    b_sess.sid AS blocker_sid,
+    b_sess.serial# AS blocker_ser#,
+    b_sess.username AS blocker_user,
+--    b_sess.machine AS blocker_machine,
+    b_sess.program AS blocker_program,
+    DECODE(b_pin.kglpnmod, 1, 'Null', 2, 'Shared', 3, 'Exclusive', TO_CHAR(b_pin.kglpnmod)) AS hold_mode,
+    -- Информация о блокируемом (Blocked)
+    DECODE(w_pin.kglpnreq, 1, 'Null', 2, 'Shared', 3, 'Exclusive', TO_CHAR(w_pin.kglpnreq)) AS req_mode,
+    'kill -9 ' || w_proc.spid AS kill_blocked_cmd,
+    w_sess.sid AS blocked_sid,
+    w_sess.serial# AS blocked_ser#,
+    w_sess.username AS blocked_user,
+    w_wait.event AS wait_event,
+    w_wait.seconds_in_wait AS secs_waiting,
+    -- Информация об объекте
+    b_obj.kglnaown || '.' || b_obj.kglnaobj AS object_name
+FROM x$kglob b_obj
+-- Соединение с блокирующим (тот, кто держит lock/pin)
+JOIN x$kglpn b_pin ON b_obj.kglhdadr = b_pin.kglpnhdl
+JOIN v$session b_sess ON b_pin.kglpnuse = b_sess.saddr
+JOIN v$process b_proc ON b_sess.paddr = b_proc.addr
+-- Соединение с блокируемым (тот, кто ждет lock/pin)
+JOIN x$kglpn w_pin ON b_obj.kglhdadr = w_pin.kglpnhdl
+JOIN v$session w_sess ON w_pin.kglpnuse = w_sess.saddr
+JOIN v$process w_proc ON w_sess.paddr = w_proc.addr
+JOIN v$session_wait w_wait ON w_sess.sid = w_wait.sid
+WHERE b_pin.kglpnmod > 0          -- Блокер удерживает блокировку
+  AND b_pin.kglpnreq = 0          -- И не запрашивает новую
+  AND w_pin.kglpnreq > 0          -- Ждущий запрашивает блокировку
+  AND w_wait.event IN ('library cache lock', 'library cache pin', 'library cache load lock')
+  AND b_sess.sid != w_sess.sid;
+END
+;;
+lib2)
+ $SP <<'END' > $LOGF
+set lines 450 pages 40
+col KILL_BLOCKER_CMD for a15 heading "HOLD_KILL_CMD"
+col blocker_sid for 999999 heading "HOLD_SID"
+col blocker_ser# for 9999999 heading "HOLD_SER#"
+col BLOCKER_USER for a20 heading "HOLD_USER"
+col BLOCKER_P_M for a20 heading "HOLD_P_M"
+col blocker_sql_id for a13 heading "HOLD_SQL_ID"
+col BLOCKER_SQL_TEXT for a30 heading "HOLD_SQL_TEXT"
+col blocker_lock_type for a4 heading "H_LT"
+col hold_mode for a10
+col req_mode for a10
+col blocked_lock_type for a4 heading "W_LT"
+col OBJECT_NAME for a30
+col KILL_BLOCKED_CMD for a15 heading "WAIT_KILL_CMD"
+col blocked_sid for 999999 heading "WAIT_SID"
+col blocked_ser# for 9999999 heading "WAIT_SER#"
+col BLOCKED_USER for a20 heading "WAIT_USER"
+col BLOCKED_P_M for a20  heading "WAIT_P_M"
+col blocked_sql_id for a13 heading "WAIT_SQL_ID"
+col BLOCKED_SQL_TEXT for a30  heading "WAIT_SQL_TEXT"
+col OBJECT_TYPE for a15
+col blocked_sql_exec_start for a20 noprint
+col wait_event for a20
+col secs_waiting for 9999 heading "S_W"
+SELECT
+    -- Информация о блокирующем (Blocker)
+    'kill -9 ' || b_proc.spid AS kill_blocker_cmd,
+    b_sess.sid AS blocker_sid,
+    b_sess.serial# AS blocker_ser#,
+    b_sess.username AS blocker_user,
+    b_sess.program || ' / ' || b_sess.module AS blocker_p_m,
+    b_sql.sql_id AS blocker_sql_id,
+    SUBSTR(b_sql.sql_text, 1, 100) AS blocker_sql_text,
+    b_lock.kgllktype AS blocker_lock_type,
+    DECODE(b_lock.kgllkmod, 0, 'None', 1, 'Null', 2, 'Share', 3, 'Exclusive', 'Unknown') AS hold_mode,
+    DECODE(w_lock.kgllkreq, 0, 'None', 1, 'Null', 2, 'Share', 3, 'Exclusive', 'Unknown') AS req_mode,
+    w_lock.kgllktype AS blocked_lock_type,
+    -- Информация об объекте
+--    w_obj.kglhdnsd AS namesp,
+    w_obj.kglobtyd AS object_type,
+    CASE
+        WHEN w_obj.kglnaown IS NULL OR LENGTH(TRIM(w_obj.kglnaown)) = 0
+        THEN w_obj.kglnaobj
+        ELSE w_obj.kglnaown || '.' || w_obj.kglnaobj
+    END AS object_name,
+    -- Информация о блокируемом (Blocked)
+    'kill -9 ' || w_proc.spid AS kill_blocked_cmd,
+    w_sess.sid AS blocked_sid,
+    w_sess.serial# AS blocked_ser#,
+    w_sess.username AS blocked_user,
+    w_sess.program || ' / ' || w_sess.module AS blocked_p_m,
+    w_sql.sql_id AS blocked_sql_id,
+    SUBSTR(w_sql.sql_text, 1, 100) AS blocked_sql_text,
+    w_sess.event AS wait_event,
+    w_sess.seconds_in_wait AS secs_waiting,
+    TO_CHAR(w_sess.sql_exec_start, 'mm/dd hh24:mi:ss') AS blocked_sql_exec_start
+    -- Команды для завершения сессий
+--    'ALTER SYSTEM KILL SESSION ''' || b_sess.sid || ',' || b_sess.serial# || ''' IMMEDIATE;' AS kill_blocker_session,
+--    'ALTER SYSTEM KILL SESSION ''' || w_sess.sid || ',' || w_sess.serial# || ''' IMMEDIATE;' AS kill_blocked_session
+FROM
+    -- Находим все объекты, где есть хотя бы один waiter
+    (SELECT DISTINCT kgllkhdl
+     FROM dba_kgllock
+     WHERE kgllkreq > 0) waiting_objects
+-- Соединение с блокирующими (те, кто держит lock/pin)
+JOIN dba_kgllock b_lock
+    ON waiting_objects.kgllkhdl = b_lock.kgllkhdl
+    AND b_lock.kgllkmod > 0
+    AND b_lock.kgllkreq = 0
+JOIN v$session b_sess ON b_lock.kgllkuse = b_sess.saddr
+LEFT JOIN v$process b_proc ON b_sess.paddr = b_proc.addr
+LEFT JOIN v$sqlarea b_sql
+    ON b_sess.sql_address = b_sql.address
+    AND b_sess.sql_hash_value = b_sql.hash_value
+-- Соединение с блокируемыми (те, кто ждет lock/pin)
+JOIN dba_kgllock w_lock
+    ON waiting_objects.kgllkhdl = w_lock.kgllkhdl
+    AND w_lock.kgllkreq > 0
+JOIN v$session w_sess ON w_lock.kgllkuse = w_sess.saddr
+LEFT JOIN v$process w_proc ON w_sess.paddr = w_proc.addr
+LEFT JOIN v$sqlarea w_sql
+    ON w_sess.sql_address = w_sql.address
+    AND w_sess.sql_hash_value = w_sql.hash_value
+LEFT JOIN x$kglob w_obj ON w_lock.kgllkhdl = w_obj.kglhdadr
+WHERE b_sess.sid != w_sess.sid  -- Исключаем самосоединение
+      AND DECODE(b_lock.kgllkmod, 0, 'None', 1, 'Null', 2, 'Share', 3, 'Exclusive', 'Unknown') not in ('None','Null','Unknown')   --Исключаем HOLD_MODE без блокировок, оставляем только Share Exclusive
+ORDER BY
+    w_obj.kglnaown,
+    w_obj.kglnaobj,
+    hold_mode DESC,
+    req_mode DESC;
 END
 ;;
 obj) $SP <<END > $LOGF
@@ -1164,7 +1335,7 @@ else
 # shift
  DD_=$(awk -F- '{print $1}' <<< "$*")
  HHB_=$(awk -F- '{print $2}' <<< "$*" )
- HHE_=$((awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*")
+ HHE_=$( (awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*" )
  HHR_=$(echo $HHE_ | awk '$1!~/:/{print $1}')
 # echo "$DD_   $HHB_    $HHE_   $HHR_"
  if [ -n "$HHR_" ]; then
@@ -2092,7 +2263,7 @@ END
         $SP <<END >> $LOGF
         set lines 230 timing on feedback on
         prompt exec DBMS_STATS.DELETE_SYSTEM_STATS;
-        exec execute DBMS_STATS.DELETE_SYSTEM_STATS;
+        exec DBMS_STATS.DELETE_SYSTEM_STATS;
         col PVAL2 for a20
         prompt select * from sys.aux_stats\$ order by sname,pname;
         select * from sys.aux_stats\$ order by sname,pname;
@@ -2189,8 +2360,6 @@ logf
 
 audit()
 {
-P1_="$1"
-shift
 sysdate=$(date +%d/%m/%y\ %H:%M:%S)
 if [ $(is_number $(awk -F"/" '{print $1}' <<< "$*")) -eq 0 ]; then
  DD_=$(date +%d/%m/%Y)
@@ -2200,19 +2369,23 @@ if [ $(is_number $(awk -F"/" '{print $1}' <<< "$*")) -eq 0 ]; then
 else
  DD_=$(awk -F- '{print $1}' <<< "$*")
  HHB_=$(awk -F- '{print $2}' <<< "$*")
- HHE_=$((awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*")
+ HHE_=$( (awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*" )
  HHR_=$(awk '$1!~/:/{print $1}' <<< "$HHE_")
  if [ -n "$HHR_" ]; then
    INTERVAL_="between to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') and to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') + interval '$HHR_' hour +  interval '2' minute"
+   shift
  else
    INTERVAL_="between to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') and to_date('$DD_ $HHE_','dd/mm/yy hh24:mi') + interval '2' minute"
+   shift
  fi
 fi
 
+P1_="$1"
+P2_="$2"
 
 case "$P1_" in
 1017)
-[[ -n "$2" ]] && USR_="$2" || USR_="%"
+[[ -n "$P2_" ]] && USR_="$2" || USR_="%"
 $SP <<EOF > $LOGF
 set lines 230
 set echo off feed off veri off tab off pages 240 numw 6
@@ -2232,28 +2405,29 @@ order by date_time;
 EOF
 ;;
 obj)
-[[ -n "$2" ]] && OBJ_="$2" || OBJ_="%"
+[[ -n "$P2_" ]] && OBJ_="$P2_" || OBJ_="%"
 $SP <<EOF > $LOGF
 set lines 230
 set echo off feed off veri off tab off pages 240 numw 6
-column date_time for a20
+column date_time for a18
 column owner for a20
 column obj_name for a35
-column action_name  for a17
+column grantee for a15
+column action_name  for a18
 column OS_USERNAME for a20
-column USERNAME for a30
-column USERHOST for a30
-column TERMINAL for a30
+column USERNAME for a20
+column USERHOST for a25 trunc
+column TERMINAL for a15 trunc
 PROMPT "dba_audit_trail for obj_name like $OBJ_ for a period $INTERVAL_ :"
-select cast(timestamp as date) date_time, owner||'.'||obj_name obj_name, action_name, username, os_username, userhost, terminal
+select cast(timestamp as date) date_time, owner, obj_name obj_name, grantee, action_name, username, os_username, userhost, terminal
 from dba_audit_trail
-where obj_name like upper('$OBJ_')
+where obj_name like upper('$OBJ_') or grantee like upper('$OBJ_')
 and timestamp $INTERVAL_
 order by date_time;
 EOF
 ;;
 maxcon)
-[[ -n "$2" ]] && CNT_="$2" || CNT_="100"
+[[ -n "$P2_" ]] && CNT_="$P2_" || CNT_="100"
 $SP <<EOF > $LOGF
 set lines 230
 set echo off feed off veri off tab off pages 240 numw 6
@@ -2286,7 +2460,7 @@ col hh24 for a19
 PROMPT "dba_audit_trail where from the db connections for period $INTERVAL_ :"
 select username,os_username,userhost,terminal, to_char(cast(timestamp as date), 'dd/mm/yyyy hh24:mi:ss') hh24, RETURNCODE
 from dba_audit_trail
-where timestamp $INTERVAL_
+where timestamp $INTERVAL_ and username like nvl('$P2_','%')
 and action=100
 order by hh24;
 EOF
@@ -2520,6 +2694,9 @@ EOF
       $SP <<EOF >$LOGF
       set lines 250
       set echo off feed off veri off tab off pages 1000
+      col CATEGORY for a20
+      col NAME for a30
+      col HEAP_NAME a20
       BREAK ON pid ON serial# ON category SKIP 1 NODUPLICATES
       COMPUTE  SUM LABEL 'SUM' OF BYTES on category
       prompt "SELECT PID, SERIAL#, CATEGORY, NAME, HEAP_NAME, BYTES, ALLOCATION_COUNT, HEAP_DESCRIPTOR, PARENT_HEAP_DESCRIPTOR, CON_ID FROM V\$PROCESS_MEMORY_DETAIL where pid=$P2_ order by pid, serial#,category,heap_name,name;"
@@ -2723,7 +2900,7 @@ P3_="$3"
 P4_="$4"
 P5_="$5"
 case "$P1_" in 
-  depend)
+  depends)
      case "$P2_" in
        last_analyzed)  if [[ $(is_number $P3_) -eq 0 ]]; then P3_=3; fi
 $SP <<EOF >$LOGF
@@ -2737,11 +2914,11 @@ col REFERENCED_NAME for a30
 col REFERENCED_TYPE for a15
 col REFERENCED_LINK_NAME for a14
 col DEPENDENCY_TYPE for a30
-prompt "DBA_DEPENDENCIES where name=upper('$P4_') and owner like nvl(upper('$P5_'),'%') and (REFERENCED_OWNER, REFERENCED_NAME) in (select owner, table_name from dba_tables where last_analyzed > sysdate - interval '$P3_' hour);"
-select * from DBA_DEPENDENCIES where name=upper('$P4_') and owner like nvl(upper('$P5_'),'%') and (REFERENCED_OWNER, REFERENCED_NAME) in (select owner, table_name from dba_tables where last_analyzed > sysdate - interval '$P3_' hour);
+prompt "DBA_DEPENDENCIES where name=upper('$P4_') and owner = upper('$P5_') and (REFERENCED_OWNER, REFERENCED_NAME) in (select owner, table_name from dba_tables where last_analyzed > sysdate - interval '$P3_' hour);"
+select * from DBA_DEPENDENCIES where name=upper('$P4_') and owner = upper('$P5_') and (REFERENCED_OWNER, REFERENCED_NAME) in (select owner, table_name from dba_tables where last_analyzed > sysdate - interval '$P3_' hour);
 EOF
-;;
-                  *)
+       ;;
+       on)
 $SP <<EOF >$LOGF
 set lines 230
 set echo off feed off veri off tab off pages 150
@@ -2751,12 +2928,29 @@ col type for a15
 col REFERENCED_OWNER for a30
 col REFERENCED_NAME for a30
 col REFERENCED_TYPE for a15
-col REFERENCED_LINK_NAME for a14
-col DEPENDENCY_TYPE for a30
-prompt "select * from DBA_DEPENDENCIES where referenced_name=upper('$P2_');"
-select * from DBA_DEPENDENCIES where referenced_name=upper('$P2_');
+col REFERENCED_LINK_NAME for a20
+col DEPENDENCY_TYPE for a13
+prompt "select d.*, o.LAST_DDL_TIME from DBA_DEPENDENCIES d, dba_objects o where d.referenced_name=upper('$P3_') and d.REFERENCED_OWNER = upper('$P4_') and d.OWNER=o.OWNER and d.NAME=o.OBJECT_NAME and d.TYPE=o.OBJECT_TYPE order by o.LAST_DDL_TIME desc;"
+select d.*, o.LAST_DDL_TIME from DBA_DEPENDENCIES d, dba_objects o where d.referenced_name=upper('$P3_') and d.REFERENCED_OWNER = upper('$P4_') and d.OWNER=o.OWNER and d.NAME=o.OBJECT_NAME and d.TYPE=o.OBJECT_TYPE order by o.LAST_DDL_TIME desc;
 EOF
        ;;
+       is)
+$SP <<EOF >$LOGF
+set lines 230
+set echo off feed off veri off tab off pages 150
+col owner for a30
+col name for a30
+col type for a15
+col REFERENCED_OWNER for a30
+col REFERENCED_NAME for a30
+col REFERENCED_TYPE for a15
+col REFERENCED_LINK_NAME for a20
+col DEPENDENCY_TYPE for a13
+prompt "select d.*, o.LAST_DDL_TIME from DBA_DEPENDENCIES d, dba_objects o where d.name=upper('$P3_') and d.owner = upper('$P4_') and d.REFERENCED_OWNER=o.OWNER and d.REFERENCED_NAME=o.OBJECT_NAME and d.REFERENCED_TYPE=o.OBJECT_TYPE order by o.LAST_DDL_TIME desc;"
+select d.*, o.LAST_DDL_TIME from DBA_DEPENDENCIES d, dba_objects o where d.name=upper('$P3_') and d.owner = upper('$P4_') and d.REFERENCED_OWNER=o.OWNER and d.REFERENCED_NAME=o.OBJECT_NAME and d.REFERENCED_TYPE=o.OBJECT_TYPE order by o.LAST_DDL_TIME desc;
+EOF
+       ;;
+          *) :     ;;
      esac
 ;;
   invalid)  
@@ -3440,6 +3634,159 @@ blevel, leaf_blocks,distinct_keys,num_rows,last_analyzed,global_stats  $SQL_TEXT
 from DBA_IND_SUBPARTITIONS where index_name='$P2_' and index_owner like nvl('$P3_','%') order by index_owner,index_name,subpartition_position;
 EOF
 ;;
+cost)
+shift
+ALL=$*
+# echo "ALL: "$*
+REL=$(db_version)
+case $REL in
+  8|9) SQL_TEXT1="
+explain plan for $ALL ;
+select * from table(dbms_xplan.display);
+" ;;
+  *)   SQL_TEXT1="
+set serveroutput on
+DECLARE
+ ub NUMBER;
+ ab NUMBER;
+BEGIN
+ DBMS_SPACE.CREATE_INDEX_COST (
+    ddl             => '$ALL',
+    used_bytes      => ub,
+    alloc_bytes     => ab
+   );
+ DBMS_OUTPUT.PUT_LINE('Used MBytes: ' || ROUND(ub/1024/1024));
+ DBMS_OUTPUT.PUT_LINE('Alloc MBytes: ' || ROUND(ab/1024/1024));
+END;
+/
+" ;;
+esac
+
+$SP <<EOF >$LOGF
+set lines 150
+set echo off feed off veri off tab off pages 80
+$SQL_TEXT1
+EOF
+;;
+usage)
+# 12.2
+# ALTER SYSTEM SET "_iut_stat_collection_type" = SAMPLED;
+# ALTER SYSTEM SET "_iut_stat_collection_type" = ALL;
+ shift
+ALL=$*
+# echo "ALL: "$*
+P1_="$1"
+P2_=$(to_upper "$2")
+P3_=$(to_upper "$3")
+# echo "P1_ $P1_"
+# echo "P2_ $P2_"
+# echo "P3_ $P3_"
+REL=$(db_version)
+case $REL in
+  8|9|10|11) SQL_TEXT1_REL="" ;;
+  *)   SQL_TEXT1_REL="
+set numw 15
+COLUMN owner FORMAT A30
+COLUMN table_name FORMAT A30
+COLUMN name  FORMAT A35
+prompt
+prompt dba_index_usage iu, dba_indexes i for Oracle 12.2 and above
+SELECT iu.owner, i.table_name, iu.name, iu.total_access_count, iu.total_exec_count, iu.total_rows_returned, iu.last_used
+FROM   dba_index_usage iu, dba_indexes i
+WHERE  iu.owner=i.owner and iu.name=i.index_name 
+and i.owner like nvl('$P3_','%') and i.table_name like nvl('$P2_','%')
+-- and total_access_count=0
+ORDER BY iu.owner, i.table_name, iu.name;
+COLUMN last_flush_time FORMAT A19
+prompt v\$index_usage_info for oracle 12.2 and above
+SELECT index_stats_enabled,
+       index_stats_collection_type,
+       active_elem_count,
+       to_char(last_flush_time,'dd/mm/yy hh24:mi:ss') last_flush_time
+FROM   v\$index_usage_info;
+ " ;;
+esac
+
+case "$P1_" in
+  on) $SP <<EOF >$LOGF
+set lines 230 pages 90 echo off feed off veri off tab off
+set serveroutput on
+begin
+  for i in (SELECT 'ALTER INDEX "' || i.owner || '"."' || i.index_name || '" MONITORING USAGE' cmd  FROM  dba_indexes i WHERE  owner = UPPER('$P3_') AND    table_name = DECODE(UPPER('$P2_'), 'ALL', table_name, UPPER('$P2_')) ) loop
+    begin
+      dbms_output.put_line(i.cmd);
+      execute immediate i.cmd;
+    exception when others then 
+     dbms_output.put_line(sqlerrm(sqlcode));
+    end;
+  end loop;
+end;
+/
+EOF
+   ;;
+  off) $SP <<EOF >$LOGF
+set lines 230 pages 90 echo off feed off veri off tab off
+set serveroutput on
+begin
+  for i in (SELECT 'ALTER INDEX "' || i.owner || '"."' || i.index_name || '" NOMONITORING USAGE' cmd  FROM  dba_indexes i WHERE  owner = UPPER('$P3_') AND    table_name = DECODE(UPPER('$P2_'), 'ALL', table_name, UPPER('$P2_')) ) loop
+    begin
+      dbms_output.put_line(i.cmd);
+      execute immediate i.cmd;
+    exception when others then
+     dbms_output.put_line(sqlerrm(sqlcode));
+    end;
+  end loop;
+end;
+/
+EOF
+   ;;
+  segstat) $SP <<EOF >$LOGF
+set lines 230 pages 90 echo off feed off veri off tab off
+COLUMN owner FORMAT A30
+COLUMN table_name FORMAT A30
+COLUMN object_name  FORMAT A35 heading INDEX_NAME
+ttitle left "Not using indexes since start DB: v\$segment_statistics ss, dba_indexes i where ss.object_type LIKE 'INDEX%'  AND ss.statistic# IN ( 0, 4, 6, 9, 10, 17)  HAVING SUM(ss.VALUE)=0   for oracle 8 9 10 11"
+SELECT   ss.owner, i.table_name, ss.object_name, SUM(ss.VALUE)
+ FROM   v\$segment_statistics ss, dba_indexes i
+ WHERE    ss.object_type LIKE 'INDEX%'  AND ss.statistic# IN ( 0, 4, 6, 9, 10, 17)
+ and ss.owner=i.owner and ss.object_name=i.index_name
+ and ss.owner like nvl('$P3_','%')
+ and i.table_name like nvl('$P2_','%')
+GROUP BY   ss.owner, i.table_name, ss.object_name
+ HAVING   SUM(ss.VALUE) = 0
+ORDER BY  ss.owner, i.table_name, ss.object_name;
+EOF
+  ;;
+    show)  $SP <<EOF >$LOGF
+-- Oracle 10g/11g
+set lines 230 pages 90 echo off feed off veri off tab off
+col OWNER for a30
+col TABLE_NAME for a30
+col INDEX_NAME for a30
+col MONITORED for a3
+col USED for a5
+col start_monitoring for a20
+col end_monitoring for a20
+prompt from sys.user\$ u, sys.obj\$ io, sys.obj\$ t, sys.ind\$ i, sys.object_usage ou   for Oracle 10g/11g
+select u.name as OWNER, t.name as TABLE_NAME, io.name as INDEX_NAME,
+decode(bitand(i.flags, 65536), 0, 'NO', 'YES') as MONITORED,
+decode(bitand(ou.flags, 1), 0, 'NO', 'YES') as USED,
+ou.start_monitoring,
+ou.end_monitoring
+from sys.user\$ u, sys.obj\$ io, sys.obj\$ t, sys.ind\$ i, sys.object_usage ou
+where i.obj# = ou.obj#
+and io.obj# = ou.obj#
+and t.obj# = i.bo#
+and u.user# = io.owner#
+and u.name like nvl('$P3_','%')
+and t.name like nvl('$P2_','%')
+order by u.name, t.name, io.name;
+$SQL_TEXT1_REL
+EOF
+  ;;
+   *) : ;;
+esac
+;;
 *)
 $SP <<EOF >$LOGF
 set lines 230
@@ -3630,7 +3977,7 @@ P2_=$(to_upper "$2")
 P3_=$(to_upper "$3")
 P4_=$(to_upper "$4")
 case "$P1_" in
-  table) $SP <<EOF >$LOGF
+  t) $SP <<EOF >$LOGF
 set lines 230 echo off feed off veri off tab off pages 40 serveroutput on
 column owner for a20
 column segment_name for a30
@@ -3841,42 +4188,69 @@ from x\$ktuxe where ktuxecfl = 'DEAD' and ktuxesiz>0;
 EOF
 ;;
 *)
+case "$(db_version)" in
+  9) SQL1_="set lines 230 pages 90
+col tablespace_name for a20
+col owner for a15
+col OBJECTTYPE for a20
+col OBJECTNAME for a30
+prompt
+prompt dba_segments where tablespace_name = nvl('$P1_','RBS')  order by sizemb desc;
+SELECT tablespace_name
+       ,owner
+       ,decode(partition_name, null, segment_name, segment_name || ':' || partition_name) objectname
+       ,segment_type objecttype
+       ,nvl(initial_extent, 0) INITIALEXT
+       ,nvl(next_extent, 0) NEXTEXT
+       ,nvl(extents, 0) NUMEXTENTS
+       ,nvl(max_extents, 0) MAX_EXTENTS
+       ,round(nvl(bytes / 1048576, 0),0) SIZEMB
+FROM dba_segments where tablespace_name = nvl('$P1_','RBS')  order by sizemb desc;
+"
+  ;;
+  *) : ;;
+esac
 $SP <<EOF >$LOGF
 set lines 230
-set echo off feed off veri off tab off pages 60
+set echo off feed off veri off tab off pages 90
 prompt
 prompt Sessions with active transactions v\$session, v\$transaction, dba_undo_extents (F: 0-triansaction, 8-rollback), estimate USED_UBLK: (used_later / (used_now - used_later)) :
+col spid for a17
 col sid for 99999
 col serial# for 9999999
 col username for a20
 col osuser for a15
 col segment_name for a23
 col used_ublk for 999999999
-col undo for 9999,999 heading "Undo Mb"
+col undo for 9999,999 heading "Undo_Mb"
 col extent_id for 99999 heading "ExtCNT"
-col pma for a65 heading "PROGRAM \ MODULE \ ACTION"
+col pma for a65 heading "PROGRAM \ MODULE \ ACTION" trunc
 col flag for a1
 col status for a10
 col last_call_et for a25
-col undoseg for a23
-SELECT s.sid, s.serial#,
+col undoseg for a22
+SELECT 'kill -9 '||p.spid spid,
+       s.sid, s.serial#,
        NVL(s.username, 'None') username,
        NVL(s.osuser, 'None') osuser,
        s.status,
+       to_char(sysdate-(s.last_call_et/60/60/24), 'Dy HH24:MI:SS') || ' - ' || ltrim(to_char(s.last_call_et/60, '9999990.0')) || ' min' last_call_et,
        s.program||' \ '||s.module||' \ '||s.action pma,
        r.name undoseg,
        substr(to_char(t.flag,'0000000X'),length(to_char(t.flag,'0000000X'))-1,1) flag,
        t.used_ublk,
-       round(t.used_ublk * TO_NUMBER(x.value)/(1024*1024),2) "Undo",
-       to_char(sysdate-(s.last_call_et/60/60/24), 'Dy HH24:MI:SS') || ' - ' || ltrim(to_char(s.last_call_et/60, '9999990.0')) || ' min' last_call_et
+       round(t.used_ublk * TO_NUMBER(x.value)/(1024*1024),2) "Undo"
   FROM sys.v_\$rollname    r,
        sys.v_\$session     s,
+       sys.v_\$process     p,
        sys.v_\$transaction t,
        sys.v_\$parameter   x
  WHERE s.taddr = t.addr
+   AND p.addr = s.paddr
    AND r.usn   = t.xidusn(+)
    AND x.name  = 'db_block_size'
 order by t.used_ublk desc;
+$SQL1_
 EOF
 ;;
 esac
@@ -4064,12 +4438,10 @@ column tablespace_name format a35
 
 BREAK ON REPORT
 COMPUTE SUM LABEL 'SUM' OF DB_size_MB on report
-select tablespace_name, sum(bytes/(1024*1024)) DB_size_MB from dba_data_files
-group by tablespace_name order by tablespace_name;
+SELECT t.name AS tablespace_name, SUM(d.bytes) / (1024 * 1024) AS db_size_mb FROM v\$tablespace t JOIN v\$datafile d ON t.ts# = d.ts# GROUP BY t.name ORDER BY t.name;
 ttitle off
 
-select tablespace_name, sum(bytes/(1024*1024)) DB_size_MB from dba_temp_files
-group by tablespace_name order by tablespace_name;
+SELECT t.name AS tablespace_name, SUM(f.bytes) / (1024 * 1024) AS db_size_mb FROM v\$tablespace t JOIN v\$tempfile f ON t.ts# = f.ts# GROUP BY t.name ORDER BY t.name;
 ttitle off
 EOF
 logf
@@ -4086,6 +4458,7 @@ col owner for a30
 col OBJECT_NAME for a30
 col ORIGINAL_NAME for a35
 col type for a20
+col ts_name for a30
 col droptime for a25
 PROMPT Recyclebin objects information from dba_recyclebin: 
 SELECT owner,OBJECT_NAME, ORIGINAL_NAME, TYPE, TS_NAME, CAN_UNDROP AS "UND", CAN_PURGE AS "PUR", DROPTIME FROM DBA_RECYCLEBIN order by droptime;
@@ -4628,32 +5001,32 @@ fra()
 $SP <<EOF >$LOGF
 set lines 230
 set echo off feed off veri off tab off pages 50 timing off
-column NAME for a32
-column DISPLAY_VALUE for a50
-column DEFAULT_VALUE for a13
-column ismodified for a10
-column description for a57
-select name,display_value,/*default_value,*/ismodified,description from SYS.V_\$PARAMETER
+col NAME for a32
+col DISPLAY_VALUE for a50
+col DEFAULT_VALUE for a13
+col ismodified for a10
+col description for a57
+select name,display_value,/*default_value,*/ismodified,description from SYS.V\$PARAMETER
 where name like 'db_recovery_file_dest%'  or name = 'db_flashback_retention_target';
 
 ttitle left "View: V\$FLASH_RECOVERY_AREA_USAGE"
+col FILE_TYPE for a35
 select * from V\$FLASH_RECOVERY_AREA_USAGE;
-column name for a60
-column space_limit for 999,999,999,999,999
-column space_available for 999,999,999,999,999
-column space_used for 999,999,999,999,999
-column space_reclaimable for 999,999,999,999,999
+col name for a50
+col space_limit for 999,999,999,999,999
+col space_available for 999,999,999,999,999
+col space_used for 999,999,999,999,999
+col space_reclaimable for 999,999,999,999,999
 ttitle left "View: v\$recovery_file_dest"
-select name, space_limit, (space_limit - space_used + space_reclaimable) space_available, round((space_used - space_reclaimable)/space_limit * 100, 1) as pct_full from v\$recovery_file_dest;
-select name,space_limit,space_used, space_reclaimable, number_of_files from v\$recovery_file_dest;
+select name, space_limit, (space_limit - space_used + space_reclaimable) space_available, space_used, space_reclaimable, round((space_used - space_reclaimable)/space_limit * 100, 1) as pct_full from v\$recovery_file_dest;
 ttitle off
 
 ttitle left "View: v\$restore_point"
-COLUMN scn FOR 999999999999999
-COLUMN Incar FOR 99
-COLUMN name FOR A25
-COLUMN storage_size FOR 999,999,999,999
-COLUMN guarantee_flashback_database FOR A3
+COL scn FOR 999999999999999
+COL Incar FOR 99
+COL name FOR A25
+COL storage_size FOR 999,999,999,999
+COL guarantee_flashback_database FOR A3
 SELECT database_incarnation# as Incar, scn, name, to_char(time,'dd/mm/yy hh24:mi:ss') as time, storage_size, guarantee_flashback_database
 FROM  v\$restore_point
 ORDER BY 4
@@ -4934,9 +5307,9 @@ P1_="$1"
 P2_="$2"
 P3_="$3"
 case "$P1_" in
-  role_sys_privs)  SQL1_="select * from role_sys_privs where role like upper('$P2_') and PRIVILEGE like upper('$P3_') order by 1,2,3;" ;;
-  role_tab_privs)  SQL1_="select * from role_tab_privs where role like upper('$P2_') and TABLE_NAME like upper('$P3_') order by 1,2,3;" ;;
-  role_role_privs) SQL1_="select * from role_role_privs where role like upper('$P2_') and GRANTED_ROLE like upper('$P3_') order by 1,2,3;" ;;
+  role_sys_privs)  SQL1_="select * from role_sys_privs where role like upper('$P2_') and PRIVILEGE like nvl(upper('$P3_'),'%') order by 1,2,3;" ;;
+  role_tab_privs)  SQL1_="select * from role_tab_privs where role like upper('$P2_') and TABLE_NAME like nvl(upper('$P3_'),'%') order by 1,2,3;" ;;
+  role_role_privs) SQL1_="select * from role_role_privs where role like upper('$P2_') and GRANTED_ROLE like nvl(upper('$P3_'),'%') order by 1,2,3;" ;;
   *) : ;;
 esac
 $SP <<EOF >$LOGF
@@ -5288,60 +5661,6 @@ logf
 longops()
 {
 P1_="$1"
-case "$P1_" in
-rman)
-$SP <<EOF >$LOGF
-set lines 230
-col filename for a60
-col bytes for 999999999999
-PROMPT v\$block_change_tracking information:
-select status, filename, bytes from v\$block_change_tracking;
-
-COLUMN CLIENT_INFO FORMAT a30
-COLUMN SID FORMAT 99999
-COLUMN SPID FORMAT 999999
-PROMPT
-PROMPT RMAN sessions:
-SELECT s.SID, p.SPID, s.CLIENT_INFO FROM V\$PROCESS p, V\$SESSION s WHERE p.ADDR = s.PADDR AND CLIENT_INFO LIKE 'rman%';
-col dbsize_gbytes for 99,999,990.00 justify right head "DBSIZE_GB"
-col input_gbytes for 99,999,990.00 justify right head "READ_GB"
-col output_gbytes for 99,999,990.00 justify right head "WRITTEN_GB"
-col output_device_type for a10 justify left head "DEVICE"
-col complete for 990.00 justify right head "COMPLETE %"
-col compression for 990.00 justify right head "COMPRESS|% ORIG"
-col est_complete for a20 head "ESTIMATED COMPLETION"
-col recid for 9999999 head "ID"
-col start_time for a9
-col end_time for a9
-col est_complete for a10
-col sysdate for a9
-PROMPT
-PROMPT v\$rman_status Estimate time of current backup if block_change_tracking is disabled:
-col status for a10
-col object_type for a15
-select /*+ RULE */ recid, status, object_type, start_time, end_time, output_device_type, dbsize_gbytes
-, input_bytes/1024/1024/1024 input_gbytes, output_bytes/1024/1024/1024 output_gbytes
-, (output_bytes/input_bytes*100) compression , ((mbytes_processed)/dbsize_gbytes/1024*100) complete
-, to_char(start_time + (sysdate-start_time)/(mbytes_processed/dbsize_gbytes/1024),'DD/MM/YYYY HH24:MI:SS') est_complete , sysdate
-from v\$rman_status rs, (select sum(bytes)/1024/1024/1024 dbsize_gbytes from v\$datafile)
-where status like 'RUNNING%' and
-output_device_type is not null
-and start_time>sysdate-3 and mbytes_processed>0
-order by  start_time;
-
-PROMPT v\$rman_backup_job_details v\$rman_status Estimate time of current backup if block_change_tracking is enabled:
-select df_total, df_backuped, round((df_backuped*100)/nvl(df_total,1),2) percent_complete, start_time
-, to_char(start_time + (sysdate-start_time)/decode( (df_backuped/df_total), '0', '1', df_backuped/df_total) , 'DD/MM/YYYY HH24:MI:SS') est_complete
-from (SELECT count(vbd.file#) df_backuped
-FROM v\$rman_backup_job_details vrbjd, v\$backup_datafile vbd
-WHERE vbd.file#>0 and vbd.completion_time BETWEEN vrbjd.start_time AND vrbjd.end_time
-AND vrbjd.input_type <> 'ARCHIVELOG'
-and vrbjd.start_time >= (select max(start_time) from v\$rman_status where status like 'RUNNING%' and operation like 'RMAN%')
-), (select count(*) df_total from v\$datafile),
-(select max(start_time) start_time from v\$rman_status where status like 'RUNNING%' and operation like 'RMAN%') ;
-EOF
-;;
-*)
   case "$(is_number $P1_)" in
     0) SQL_="'select b.* from v\$session a, v\$session_longops b where a.sid = b.sid and a.serial# = b.serial# and a.status=''ACTIVE'' and b.message like ''%$P1_%'' and SOFAR<>TOTALWORK order by b.sid,b.start_time'" ;;
     1) SQL_="'select b.* from v\$session a, v\$session_longops b where a.sid = b.sid and a.serial# = b.serial# and a.status=''ACTIVE'' and a.sid = ''$P1_'' and SOFAR<>TOTALWORK order by b.sid,b.start_time'" ;;
@@ -5358,8 +5677,6 @@ begin
 end;
 /
 EOF
-;;
-esac
 logf
 }
 
@@ -5521,6 +5838,58 @@ P1_="$1"
 P2_="$2"
 [[ -z "$P1_" ]] && P1_=7
 case "$P1_" in
+current)
+$SP <<EOF >$LOGF
+set lines 230
+col filename for a60
+col bytes for 999999999999
+PROMPT v\$block_change_tracking information:
+select status, filename, bytes from v\$block_change_tracking;
+
+COLUMN CLIENT_INFO FORMAT a30
+COLUMN SID FORMAT 99999
+COLUMN SPID FORMAT 999999
+PROMPT
+PROMPT RMAN sessions:
+SELECT s.SID, p.SPID, s.CLIENT_INFO FROM V\$PROCESS p, V\$SESSION s WHERE p.ADDR = s.PADDR AND CLIENT_INFO LIKE 'rman%';
+col dbsize_gbytes for 99,999,990.00 justify right head "DBSIZE_GB"
+col input_gbytes for 99,999,990.00 justify right head "READ_GB"
+col output_gbytes for 99,999,990.00 justify right head "WRITTEN_GB"
+col output_device_type for a10 justify left head "DEVICE"
+col complete for 990.00 justify right head "COMPLETE %"
+col compression for 990.00 justify right head "COMPRESS|% ORIG"
+col est_complete for a20 head "ESTIMATED COMPLETION"
+col recid for 9999999 head "ID"
+col start_time for a9
+col end_time for a9
+col est_complete for a10
+col sysdate for a9
+PROMPT
+PROMPT v\$rman_status Estimate time of current backup if block_change_tracking is disabled:
+col status for a10
+col object_type for a15
+select /*+ RULE */ recid, status, object_type, start_time, end_time, output_device_type, dbsize_gbytes
+, input_bytes/1024/1024/1024 input_gbytes, output_bytes/1024/1024/1024 output_gbytes
+, (output_bytes/input_bytes*100) compression , ((mbytes_processed)/dbsize_gbytes/1024*100) complete
+, to_char(start_time + (sysdate-start_time)/(mbytes_processed/dbsize_gbytes/1024),'DD/MM/YYYY HH24:MI:SS') est_complete , sysdate
+from v\$rman_status rs, (select sum(bytes)/1024/1024/1024 dbsize_gbytes from v\$datafile)
+where status like 'RUNNING%' and
+output_device_type is not null
+and start_time>sysdate-3 and mbytes_processed>0
+order by  start_time;
+
+PROMPT v\$rman_backup_job_details v\$rman_status Estimate time of current backup if block_change_tracking is enabled:
+select df_total, df_backuped, round((df_backuped*100)/nvl(df_total,1),2) percent_complete, start_time
+, to_char(start_time + (sysdate-start_time)/decode( (df_backuped/df_total), '0', '1', df_backuped/df_total) , 'DD/MM/YYYY HH24:MI:SS') est_complete
+from (SELECT count(vbd.file#) df_backuped
+FROM v\$rman_backup_job_details vrbjd, v\$backup_datafile vbd
+WHERE vbd.file#>0 and vbd.completion_time BETWEEN vrbjd.start_time AND vrbjd.end_time
+AND vrbjd.input_type <> 'ARCHIVELOG'
+and vrbjd.start_time >= (select max(start_time) from v\$rman_status where status like 'RUNNING%' and operation like 'RMAN%')
+), (select count(*) df_total from v\$datafile),
+(select max(start_time) start_time from v\$rman_status where status like 'RUNNING%' and operation like 'RMAN%') ;
+EOF
+;;
 dftb)
 $SP <<EOF >$LOGF
 set lines 250
@@ -6646,7 +7015,7 @@ if [ $(is_number $(awk -F"/" '{print $1}' <<< "$*")) -eq 0 ]; then
 else
   DD_=$(awk -F- '{print $1}' <<< "$*")
   HHB_=$(awk -F- '{print $2}' <<< "$*")
-  HHE_=$((awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*")
+  HHE_=$( (awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*" )
   HHR_=$(awk '$1!~/:/{print $1}' <<< "$HHE_")
   if [ -n "$HHR_" ]; then
     INTERVAL_="between to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') and to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') + interval '$HHR_' hour +  interval '2' minute"
@@ -6663,7 +7032,7 @@ fi
 
 type_=$(awk '{print $1}' <<< "$*")
 
-SET_COL='set lines 250 pages 80
+SET_COL='set lines 255 pages 80
 set long 1000000000 longc 1000000000
 col INSTANCE_NUMBER for 999 heading 'IN'
 col CON_ID for 999 heading 'CON'
@@ -6689,18 +7058,18 @@ col ACTION for a16
 col MACHINE for a20
 col PMAM for a70 heading "PROGRAM \ MODULE \ ACTION \ MACHINE" truncated
 col TIME_WAITED for 999990.99
-col CPU for 99990.99
-col WAIT for 99990.99
-col IO for 99990.99
+col CPU for 999990.99
+col WAIT for 999990.99
+col IO for 999990.99
 col activity for 99990.99 heading "%ACTIVITY"
 col sql_opname for a15
 col entry_name for a45
 col owner for a30
 col OBJECT_NAME for a35
 col OBJECT_type for a35
-col SQL_OPNAME for a20
-col SQL_PLAN_OPERATION for a20
-col SQL_PLAN_OPTIONS for a20
+col SQL_OPNAME for a30
+col SQL_PLAN_OPERATION for a30
+col SQL_PLAN_OPTIONS for a30
 col top_level_sql_id for a14
 col top_level_call_name for a20'
 
@@ -6795,7 +7164,7 @@ where)
   if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and instance_number=$AND_INST_ID"; fi
   if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
   shift
-  [[ -n "$@" ]] && COND_=" $@ and "
+  [[ -n "$*" ]] && COND_=" $* and "
 #  FIELD_=$(awk '{print $2}' <<< "$*")
 #  if [ -z "$FIELD_" ]; then FIELD_="program"; fi
 #  PRG_=$(awk '{print $3}' <<< "$*")
@@ -6832,7 +7201,7 @@ insection)
 if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and instance_number=$AND_INST_ID"; fi
 if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
 shift
-[[ -n "$@" ]] && COND_=" $@ "
+[[ -n "$*" ]] && COND_=" $* "
 case "$@" in
    service) COND_="svc.name" ; COND_SRVC1_=", gv\$services svc " ; COND_SRVC2_="AND svc.name_hash=h.service_hash";;
          *) COND_="$@"; [[ -z "$COND_" ]] && COND_="username" ;;         # sql_opname,sql_plan_operation,sql_plan_options
@@ -6862,7 +7231,7 @@ waitchains)
 if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and instance_number=$AND_INST_ID"; fi
 if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
 shift
-[[ -n "$@" ]] && COND_=" $@ "
+[[ -n "$*" ]] && COND_=" $* "
 if [[ -z "$COND_" ]]; then 
   COND_="username||':'||program2||'> '||event2"
   START_="1=1"
@@ -6995,8 +7364,9 @@ sql)
    PROMPT "Events from DBA_HIST_ACTIVE_SESS_HISTORY by filter: sample_time $INTERVAL_  Event: $EVENT_"
    PROMPT
    $SET_COL
+   col time_waited for 990.9999999
    column PMAM for a55 heading "PROGRAM \ MODULE \ ACTION \ MACHINE" truncated
-   select to_char(sample_time,'DD/MM/YY HH24:MI:SS')time,session_id sid,"SESSION_SERIAL#" serial,username,sql_id,event,wait_class,"CURRENT_OBJ#" OBJ#,"CURRENT_FILE#" FILE#,"CURRENT_BLOCK#" BLOCK#,
+   select to_char(sample_time,'DD/MM/YY HH24:MI:SS')time,session_id sid,"SESSION_SERIAL#" serial,username,sql_id,event,wait_class,time_waited/1000000 time_waited,"CURRENT_OBJ#" OBJ#,"CURRENT_FILE#" FILE#,"CURRENT_BLOCK#" BLOCK#,
    blocking_session_status BLSTATUS,blocking_session BLSID,"BLOCKING_SESSION_SERIAL#" BLSERIAL,/*program,module,action,machine*/ program||' \ '||module||' \ '||action||' \ '||machine PMAM
    from DBA_HIST_ACTIVE_SESS_HISTORY h, dba_users u where h.user_id=u.user_id and dbid=(select dbid from v\$database) and sample_time $INTERVAL_
    and event like '%$EVENT_%' order by sample_time;
@@ -7183,7 +7553,7 @@ case "$LEN_" in
  trunc(rows_processed_delta / decode(executions_delta, 0, 1, executions_delta)) rows_processed_delta,
  decode(EXECUTIONS_delta, 0, cpu_time_delta/1000000, round(cpu_time_delta/EXECUTIONS_delta/1000000, 4)) cpu_time_delta,
  (elapsed_time_delta / decode(nvl(executions_delta, 0), 0, 1, executions_delta)) / 1000000 elapsed_time_delta,
- decode(EXECUTIONS_delta, 0, iowait_delta/1000000, round(iowait_delta/EXECUTIONS_delta/1000000, 4)) iowait_delta
+ decode(EXECUTIONS_delta, 0, iowait_delta/1000000, round(iowait_delta/EXECUTIONS_delta/1000000, 4)) iowait_delta, SHARABLE_MEM
  from dba_hist_sqlstat st, dba_hist_snapshot hs
  where st.snap_id=hs.snap_id and sql_id = '$SQL_ID_' and st.instance_number = hs.instance_number and
  hs.snap_id in (select snap_id from DBA_HIST_SNAPSHOT where begin_interval_time $INTERVAL_ ) $AND_INST_ID $AND_CON_ID
@@ -7203,6 +7573,7 @@ EOF
    sor*|srt*) S1_="sorts_delta * executions_delta desc" ;;
    iow*) S1_="iowait_delta * executions_delta desc" ;;
    row*) S1_="rows_processed_delta * executions_delta desc" ;;
+   sha*) S1_="SHARABLE_MEM desc" ;;
       *) S1_="PIO_PER_EXEC * executions_delta desc" ;;
  esac
  if [ -z "$P2_" ]; then P2_=1; fi
@@ -7219,7 +7590,7 @@ EOF
  trunc(rows_processed_delta / decode(executions_delta, 0, 1, executions_delta)) rows_processed_delta,
  decode(EXECUTIONS_delta, 0, cpu_time_delta/1000000, round(cpu_time_delta/EXECUTIONS_delta/1000000, 4)) cpu_time_delta,
  (elapsed_time_delta / decode(nvl(executions_delta, 0), 0, 1, executions_delta)) / 1000000 elapsed_time_delta,
- decode(EXECUTIONS_delta, 0, iowait_delta/1000000, round(iowait_delta/EXECUTIONS_delta/1000000, 4)) iowait_delta
+ decode(EXECUTIONS_delta, 0, iowait_delta/1000000, round(iowait_delta/EXECUTIONS_delta/1000000, 4)) iowait_delta, SHARABLE_MEM
  from dba_hist_sqlstat st, dba_hist_snapshot hs
  where st.snap_id=hs.snap_id and st.instance_number = hs.instance_number and
  hs.snap_id in (select snap_id from DBA_HIST_SNAPSHOT where begin_interval_time $INTERVAL_ ) $AND_INST_ID $AND_CON_ID
@@ -7278,7 +7649,7 @@ else
   shift
   DD_=$(awk -F- '{print $1}' <<< "$*")
   HHB_=$(awk -F- '{print $2}' <<< "$*")
-  HHE_=$((awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*")
+  HHE_=$( (awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*" )
   HHR_=$(awk '$1!~/:/{print $1}' <<< "$HHE_")
   if [ -n "$HHR_" ]; then
     INTERVAL2_="between to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') and to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') + interval '$HHR_' hour +  interval '2' minute"
@@ -7291,7 +7662,9 @@ else
   if [ -z "$PERCENT_" ]; then PERCENT_='20'; fi
   $SP <<EOF >$LOGF
 PROMPT
-PROMPT "Compare elapsed_time/exec NO PHV two periods dba_hist_sqlstat h1 where begin_interval_time $INTERVAL_ and dba_hist_sqlstat h2 $INTERVAL2_"
+PROMPT "Compare elapsed_time/exec NO considering PHV two periods dba_hist_sqlstat h1 where begin_interval_time $INTERVAL_ and dba_hist_sqlstat h2 $INTERVAL2_"
+set lines 250 pages 80
+col sql_id for a13
    WITH awr_period1 AS (
     SELECT sql_id, SUM(executions_delta) AS total_execs, SUM(elapsed_time_delta) AS total_etime,
         CASE WHEN SUM(executions_delta) > 0
@@ -7334,7 +7707,7 @@ WHERE p2.avg_etime > p1.avg_etime + ((p1.avg_etime / 100) * $PERCENT_ )         
 ORDER BY pct_increase DESC;
 
 PROMPT
-PROMPT "Compare elapsed_time/exec with PHV for two period dba_hist_sqlstat h1 where begin_interval_time $INTERVAL_ and dba_hist_sqlstat h2 $INTERVAL2_"
+PROMPT "Compare elapsed_time/exec considering PHV for two period dba_hist_sqlstat h1 where begin_interval_time $INTERVAL_ and dba_hist_sqlstat h2 $INTERVAL2_"
 set lines 250 pages 80
 WITH awr_stats1 AS (
     SELECT sql_id, plan_hash_value, SUM(executions_delta) AS total_execs, SUM(elapsed_time_delta) AS total_etime,
@@ -7983,7 +8356,7 @@ done
  else
    DD_=$(awk -F- '{print $1}' <<< "$*")
    HHB_=$(awk -F- '{print $2}' <<< "$*")
-   HHE_=$((awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*")
+   HHE_=$( (awk -F- '{print $3}' | cut -d' ' -f1) <<< "$*" )
    HHR_=$(awk '$1!~/:/{print $1}' <<< "$HHE_")
 #   echo "DD_: $DD_   HHB_: $HHB_  HHE_: $HHE_  HHR_: $HHR_ "
    if [ -n "$HHR_" ]; then
@@ -8005,7 +8378,7 @@ done
  P2_=$(awk '{print $3}' <<< "$*")
  P3_=$(awk '{print $4}' <<< "$*")
 
-SET_COL='set lines 250 pages 80
+SET_COL='set lines 255 pages 80
 set long 1000000000 longc 1000000000
 col INST_ID for 999 heading "IN"
 col CON_ID for 999 heading "CON"
@@ -8139,7 +8512,7 @@ where)
 if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and inst_id=$AND_INST_ID"; fi
 if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
 shift
-[[ -n "$@" ]] && COND_=" $@ and "
+[[ -n "$*" ]] && COND_=" $* and "
 #echo "COND_: "$COND_
 #FIELD_=$(awk '{print $2}' <<< "$*")
 #if [ -z "$FIELD_" ]; then FIELD_="program"; fi
@@ -8182,7 +8555,7 @@ insection)
 if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and inst_id=$AND_INST_ID"; fi
 if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
 shift
-[[ -n "$@" ]] && COND_=" $@ "
+[[ -n "$*" ]] && COND_=" $* "
 case "$@" in
    service) COND_="svc.name" ; COND_SRVC1_=", gv\$services svc " ; COND_SRVC2_="AND svc.name_hash=h.service_hash";;
          *) COND_="$@"; [[ -z "$COND_" ]] && COND_="username"  ;;         # sql_opname,sql_plan_operation,sql_plan_options
@@ -8212,7 +8585,7 @@ waitchains)
 if [ -n "$AND_INST_ID" ]; then AND_INST_ID=" and inst_id=$AND_INST_ID"; fi
 if [ -n "$AND_CON_ID" ]; then AND_CON_ID=" and con_id=$AND_CON_ID"; fi
 shift
-[[ -n "$@" ]] && COND_=" $@ "
+[[ -n "$*" ]] && COND_=" $* "
 if [[ -z "$COND_" ]]; then
   COND_="username||':'||program2||'> '||event2"
   START_="1=1"
@@ -8336,8 +8709,9 @@ sql)
    PROMPT
    PROMPT "Events from GV\$ACTIVE_SESSION_HISTORY where sample_time $INTERVAL_ and event like $EVENT_"
    $SET_COL
+   col time_waited for 990.9999999
    column PMAM for a55 heading "PROGRAM \ MODULE \ ACTION \ MACHINE" truncated
-   select inst_id, $CON_ID to_char(sample_time,'DD/MM/YY HH24:MI:SS')time,session_id sid,"SESSION_SERIAL#" serial,username,sql_id,nvl(event,'ON CPU') event,wait_class,"CURRENT_OBJ#" OBJ#,"CURRENT_FILE#" FILE#,"CURRENT_BLOCK#" BLOCK#,
+   select inst_id, $CON_ID to_char(sample_time,'DD/MM/YY HH24:MI:SS')time,session_id sid,"SESSION_SERIAL#" serial,username,sql_id,nvl(event,'ON CPU') event,wait_class,time_waited/1000000 time_waited,"CURRENT_OBJ#" OBJ#,"CURRENT_FILE#" FILE#,"CURRENT_BLOCK#" BLOCK#,
    blocking_session_status BLSTATUS,blocking_session BLSID,"BLOCKING_SESSION_SERIAL#" BLSERIAL,/*program,module,action, $MACHINE_ */ program||' \ '||module||' \ '||action||' \ '|| $MACHINE_ PMAM
    from gv\$active_session_history h, dba_users u where h.user_id=u.user_id and sample_time $INTERVAL_ $AND_INST_ID $AND_CON_ID and event like '%$EVENT_%' order by sample_time;
 EOF
@@ -9493,14 +9867,20 @@ SELECT t.pid ,t.spid ,t.PNAME
 EOF
 ;;
   *) if [ $(is_number $P1_) -eq 1 -a  $(is_number $P2_) -eq 1 ]; then
-     if [ -z "$P3_" ]; then echo "The Instance is not specified. Will try killing in 1 instance"; P3_="1"; fi
+     case "$(db_version)" in
+        9) SESS_ID_="$P1_, $P2_" ;;
+	*) if [ -n "$P3_" ]; then 
+	     echo "The Instance is specified. Will try killing in $P3_ instance"; 
+	   else 
+	     echo "The Instance is NOT specified. Will try killing in 1 instance"; P3_=1
+           fi
+           SESS_ID_="${P1_}, ${P2_}, @${P3_}" ;;
+     esac
     $SP <<EOF >$LOGF
     set lines 230
     set echo off feed off veri off tab off pages 60
---    prompt alter system kill session '$P1_, $P2_,@$P3_' immediate;
---    alter system kill session '$P1_, $P2_,@$P3_' immediate;
-    prompt alter system kill session '$P1_, $P2_' immediate;
-    alter system kill session '$P1_, $P2_' immediate;
+    prompt alter system kill session '${SESS_ID_}' immediate;
+    alter system kill session '${SESS_ID_}' immediate;
 EOF
 fi
 ;;
@@ -9535,10 +9915,15 @@ end;
 EOF
   ;;
   *)
-ALL=$(echo $ALL | sed -e "s|;||g")
+# ALL=$(echo $ALL | sed -e "s|;||g")
+NL='
+'
+ALL=${ALL//\\n/$'\n'}
+ALL_ONE=${ALL//$NL/ ; }
+# ${string//substring/replacement}
 $SP <<EOF >$LOGF
 set lines 375 tab off echo on feed on veri on pages 60 numw 15
-prompt Execute SQL command: "$ALL"
+prompt Execute SQL command: "$ALL_ONE"
 $ALL
 /
 EOF
@@ -9547,6 +9932,7 @@ esac
 touch $LOGF
 logf
 }
+
 
 
 
@@ -9584,7 +9970,7 @@ set lines 220 timing off
 set echo off feed off veri off tab off termout off pages 0
 col value new_value value
 col db_name new_value db_name
-select value from nls_database_parameters where parameter='NLS_CHARACTERSET';
+select value from v\$nls_parameters where parameter='NLS_CHARACTERSET';
 $CMD1_
 select INSTANCE_NAME db_name from v\$instance;
 
@@ -9621,7 +10007,7 @@ EOF
   *) 
 $SP <<END
 set pagesize 0 feedback off verify off heading off echo off timing off
-  select value from nls_database_parameters where parameter='NLS_CHARACTERSET';
+  select value from v\$nls_parameters where parameter='NLS_CHARACTERSET';
 END
 VALUE=$($SP <<END
 set pagesize 0 feedback off verify off heading off echo off timing off
@@ -9649,7 +10035,7 @@ DAY_="$3"
 
 DD_=$(awk -F- '{print $1}' <<< "$DAY_")
 HHB_=$(awk -F- '{print $2}' <<< "$DAY_")
-HHE_=$((awk -F- '{print $3}' | cut -d' ' -f1) <<< "$DAY_")
+HHE_=$( (awk -F- '{print $3}' | cut -d' ' -f1) <<< "$DAY_" )
 HHR_=$(awk '$1!~/:/{print $1}' <<< "$HHE_")
 if [ -n "$HHR_" ]; then
   INTERVAL_="end_interval_time between to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') - interval '2' minute and to_date('$DD_ $HHB_','dd/mm/yy hh24:mi') + interval '$HHR_' hour + interval '2' minute"
@@ -9667,7 +10053,7 @@ else
 
   DD2_=$(awk -F- '{print $1}' <<< "$DAY2_")
   HHB2_=$(awk -F- '{print $2}' <<< "$DAY2_")
-  HHE2_=$((awk -F- '{print $3}' | cut -d' ' -f1) <<< "$DAY2_")
+  HHE2_=$( (awk -F- '{print $3}' | cut -d' ' -f1) <<< "$DAY2_" )
   HHR2_=$(awk '$1!~/:/{print $1}' <<< "$HHE2_")
   if [ -n "$HHR2_" ]; then
     INTERVAL2_="end_interval_time between to_date('$DD2_ $HHB2_','dd/mm/yy hh24:mi') - interval '2' minute and to_date('$DD2_ $HHB2_','dd/mm/yy hh24:mi') + interval '$HHR2_' hour + interval '2' minute"
@@ -9834,14 +10220,7 @@ U=$(awk -F_ '{print $1}' <<< $(uname))
 case "$U" in
  CYGWIN) echo -n "DB=$sid $SYSDATE ver=$TPIVER $ls2 " ;;
  AIX)    echo -n "DB=$sid $SYSDATE ver=$TPIVER $ls2 " ;;
- *)      red=$(tput setaf 1)
-         green=$(tput setaf 2)
-         yellow=$(tput setaf 3)
-         blue=$(tput setaf 4)
-         magneta=$(tput setaf 5)
-         cyan=$(tput setaf 6)
-         reset=$(tput sgr0)
-         echo -n ${green}"DB=$sid $SYSDATE ver=$TPIVER $ls2 "
+ *)      echo -n ${green}"DB=$sid $SYSDATE ver=$TPIVER $ls2 "
  ;;
 esac
 
@@ -9891,7 +10270,7 @@ rman)      shift; ALL=$*; echo $rman__ ${reset}; rman $ALL ;;
 get_ddl)   shift; ALL=$*; echo $get_ddl__ ", for: "$ALL ${reset} ; get_ddl $ALL ;;
 trace)     shift; ALL=$*; echo $trace__ ${reset}; trace $ALL ;;
 kill)      shift; ALL=$*; echo $kill__ ${reset}; kill_ $ALL ;;
-exec)      shift; ALL=$*; echo $exec__ ${reset}; exec_ $ALL ;;
+exec)      shift; ALL=$*; printf '%s' "$exec__"; echo ${reset}; exec_ $ALL ;;
 alert)     shift; ALL=$*; echo $alert__ ${reset}; alert $ALL ;;
 report)    shift; ALL=$*; echo $report__ ${reset}; report $ALL ; echo $report__;;
 corrupt)   shift; ALL=$*; echo $corrupt__ ${reset}; corrupt $ALL ;;

@@ -45,12 +45,12 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     LOG_FILE1=$LOGDIR/mon_stb_${HOST}_${DB}_arch_dest_status_$$.log
     cat $LOG_FILE0 | awk '/ID SEQUENCE STATUS/,/^ *$/' | awk '! /^$/ && /^ +[0-9]+ .*/'  | awk '$3!~/VALID|DEFERRED/{print}' > $LOG_FILE1
     if [ -s $LOG_FILE1 ]; then
-      cat $LOG_FILE1 | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "- ARCHIVELOG STATUS: $(date +%H:%M:%S-%d/%m/%y) for dest_id: ${DEST_ID}"
-      echo "ARCHIVELOG STATUS warning on host: ${HOST}   database: ${DB}   dest_id: ${DEST_ID}"
+      cat $LOG_FILE1 | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "- ARCHIVELOG STATUS: $(date +%H:%M:%S-%d/%m/%y)"
+      echo "ARCHIVELOG STATUS warning on host: ${HOST}   database: ${DB}"
     fi
     rm $LOG_FILE1
 
-    LOG_FILE=$LOGDIR/mon_stb_${HOST}_${DB}_${DEST_ID}_$$.log
+    LOG_FILE=$LOGDIR/mon_stb_${HOST}_${DB}__$$.log
     awk '/LAG_MINUTES/,/^ *$/' $LOG_FILE0 > $LOG_FILE
     rm $LOG_FILE0
     awk '!/LAG_MINUTES/ && !/--------/ && !/^ *$/{print $2" "$(NF-1)" "$NF}' $LOG_FILE | while read DEST_ID SEQ_GAP_NOW LAG_MINUTES_NOW; do
@@ -92,7 +92,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
       # find old trg_files more then at $REPEAT_AT minutes
       HH=$(date +%H)
       case "$HH" in
-      "${REPEAT_AT}")
+      ${REPEAT_AT})
          FF=$(find "$TRG_FILE_SEQ_GAP" -mmin +$REPEAT_MINUTES 2>/dev/null | wc -l)
          if [ "$FF" -eq 1 ]; then
            CNT=$(head -1 $TRG_FILE_SEQ_GAP)

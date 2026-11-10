@@ -1,7 +1,28 @@
 #!/bin/bash
 set -f
+
+base64_encode() {
+    if [ $# -gt 0 ]; then
+        printf '%s' "$1" | perl -MMIME::Base64 -0777 -ne 'print encode_base64($_, "")'
+    else
+        perl -MMIME::Base64 -0777 -ne 'print encode_base64($_, "")'
+    fi
+    echo
+}
+
+base64_decode() {
+    if [ $# -gt 0 ]; then
+        printf '%s' "$1" | perl -MMIME::Base64 -0777 -ne 'print decode_base64($_)'
+    else
+        perl -MMIME::Base64 -0777 -ne 'print decode_base64($_)'
+    fi
+}
+
+#export PROMPT_COMMAND='PS1=`echo "\n\[\e[0;33m\][\D{%d/%m/%y-%H:%M:%S}] \[\e[01;31m\]\u@\h:\$ORACLE_SID \[\e[1;34m\]\w\n\$ \[\e[0;32m\]\[\e[0m\]"`'
+#aliases=/etc/profile.d/00-dbs-aliases.sh
+#if [ -s $aliases ]; then  . /etc/profile.d/00-dbs-aliases.sh ; fi
 if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 [SERVER] ORACLE_SID"
+  echo "Usage: $0 [<SERVER>] <ORACLE_SID[/PDB]> [<TNS_LOGIN_STR>] [<tpi PARAMS>]"
   exit
 fi
 P1_="$1"
@@ -9,9 +30,12 @@ sid="$2"
 # if [ -z "$sid" ]; then sid="$P1_"; fi
 shift
 shift
-args0="$@"
-args=$(echo $args0 | sed -e 's|\*|\\*|g' -e 's|\$|\\$|g' -e 's|\;|\\;|g' -e 's|(|\\(|g' -e 's|)|\\)|g' -e 's|"|\\"|g' -e "s|'|\\\'|g" -e 's|<|\\<|g' -e 's|>|\\>|g' )  # Note: Must be escaped with \\ characters: * ; ' ! ( ) in rtpi.
+args="$@"
+args0="$args"
+args=$(echo $args0 | sed -e 's|\*|\\*|g' -e 's|\$|\\$|g' -e 's|\;|\\;|g' -e 's|(|\\(|g' -e 's|)|\\)|g' -e 's|"|\\"|g' -e "s|'|\\\'|g" -e 's|<|\\<|g' -e 's|>|\\>|g' -e 's/|/\\|/g' )  # Note: Must be escaped with \\ characters: * ; ' ! ( ) | in rtpi.
 args2=$(echo $args0 | sed -e 's|"|\\"|g')
+# args_b64=$(printf '%s' "$sid $args2" | base64 -w 0); # Solaris 10 \ AIX - base64: command not found
+# argsl="$args"
 BASEDIR=`dirname $0`
 wtpi="$BASEDIR/tpi"
 SSHCMD="ssh -o ConnectTimeout=5 -o ServerAliveInterval=30 -o BatchMode=yes"
@@ -23,18 +47,76 @@ SET_ENV_F="$BASEDIR/set_env"
 if [ "$BASEDIR" = "/bin" ]; then
   BASEDIR=`find . -type f -name .tpi_login -exec dirname {} \;`
 fi
-login_str=$(awk '{IGNORECASE=1}/^'$P1_' +'$sid' +.*/{print substr($0,index($0,$3))}' $BASEDIR/.tpi_login 2>/dev/null | head -1)
+login_str=$(awk '{IGNORECASE=1}/^'$P1_' +'$sid' +.*/{print substr($0,index($0,$3))}' $BASEDIR/.tpi_login 2>/dev/null | head -1 | egrep -v aisutf)
+args_b64=$(printf '%s' "$sid $login_str $args2" | base64_encode)
 chmod 600 $BASEDIR/.tpi_login 2>/dev/null
-# echo "rtpi_login_str: "$login_str
+# echo "rtpi_login_str: $login_str"
+# echo "args_b64: $args_b64"
 
 shopt -s nocasematch
 case "${P1_}:${sid}" in
-  SRV-ORA*:dbpro*)                                                        cat $wtpi | $SSHCMD mp ". ~/.ora_env; /bin/bash -s $sid '" $login_str "' $args" ;;
-  aisprod:aisutf)                                                         $wtpi $sid $login_str $args ;;
-  ais*:*|unit*:*|alpha:*|beta:*|crm:*)                                    cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.ora_env; /bin/bash -s $sid $args" ;;
-  dsacs:*|sdsacs:*) args_b64=$(printf '%s' "$sid $args2" | base64 -w 0);  cat $wtpi | $SSHCMD someuser@$P1_ "sudo -i -u oracle /bin/bash -s tpibase64 $args_b64" ;;   # sudo -i cuts escaped characters, therefore I use base64 with 1 parameter="tpibase64"
-  *:*)                                                                    cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.bash_profile ; /bin/bash -s $sid $args" ;;
+#  *gold*:*|*retail-db:*|*stock-db:*|*egais*:*|srv-vetdb*:*|*label-db:*|*alcdsk-db:*)       cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.bashrc >/dev/null 2>&1; /bin/bash -s $sid $args" ;;
+#  srv-deosdb*:*|srv-olapwhs*:*|srv-axdb*:*)                                                cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.bash_profile  >/dev/null 2>&1; /bin/bash -s $sid $args" ;;
+  askona*:*)                                                                               cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.profile >/dev/null 2>&1; /bin/bash -s tpibase64 $args_b64" ;;
+#  storgco:*|ikb:*)                                                                         $wtpi $sid $login_str $args ;;
+#  p260unc2:*|p922bull2:*)                                                                  cat $wtpi | $SSHCMD oracle@$P1_ "if [ -f ~/unc10g_setenv.sh ]; then . ~/unc10g_setenv.sh >/dev/null 2>&1; fi; /bin/bash -s $sid $args" ;;
+#  p260unc4:*)                                                                              cat $wtpi | $SSHCMD oracle@$P1_ "if [ -f ~/uncunc_setenv.sh ]; then . ~/uncunc_setenv.sh >/dev/null 2>&1; fi; /bin/bash -s $sid $args" ;;
+#  z14-0975-tfdb:obklocal)                                                                  cat $wtpi | $SSHCMD oracle@p550dev ". ~/pbuh_n_setenv.sh; /bin/bash -s $sid '" $login_str "' $args" ;;
+#  z14-0976-tfdb:middle)                                                                    cat $wtpi | $SSHCMD oracle@p550dev ". ~/pbuh_n_setenv.sh; /bin/bash -s $sid '" $login_str "' $args" ;;
+#  z11-00341-otbd:opndb|SMOK-ORA01:obk|obkt:*|p750alife:*|alfa:*)                           cat $wtpi | $SSHCMD oracle@p260unc2 ". ~/unc10g_setenv.sh; /bin/bash -s $sid '" $login_str "' $args" ;;
+#  mdstock2:PSTOCK)                                                                         cat $wtpi | $SSHCMD oracle$P1_ "[ -r ~/.bash_profile ] && source ~/.bash_profile ; /bin/bash -s $sid $args" ;;
+#  z11-*:*INS*|z14-*:INS*)                                                                  cat $wtpi | $SSHCMD oracle@p550dev ". ~/pbuh_n_setenv.sh; /bin/bash -s $sid '" $login_str "' $args" ;;
+#  z14-3209-insab:ISTST)                                                                    cat $wtpi | $SSHCMD oracle@p550dev ". ~/pbuh_n_setenv.sh; /bin/bash -s $sid '" $login_str "' $args" ;;
+#  z14-*:LFDWH*)                                                                            cat $wtpi | $SSHCMD oracle@p922bull2 ". ~/unc10g_19_setenv.sh; /bin/bash -s $sid '" $login_str "' $args" ;;
+#  [z]14-*:*|kem-ora01:*|brnsk-oracle-phenix:*|abkh-oracle-phenix:*)                        cat $wtpi | $SSHCMD $P1_ "if [ -f ${sid}_setenv.sh ]; then . ${sid}_setenv.sh >/dev/null 2>&1; fi; /bin/bash -s $sid $args" ;;
+#  SRV-ORA*:dbpro*)                                                                         cat $wtpi | $SSHCMD mp ". ~/.ora_env; /bin/bash -s $sid '" $login_str "' $args" ;;
+  SRV-ORA*:dbpro*)                                                                         cat $wtpi | $SSHCMD mp ". ~/.ora_env; /bin/bash -s tpibase64 $args_b64" ;;
+#  aisprod:aisutf)                                                                           $wtpi $sid $login_str $args0 ;;
+#  beta:aisutf)                                                                              $wtpi $sid $login_str $args0 ;;
+  orclcdb:*)                                                                                $wtpi $sid $login_str $args ;;
+  ais*:*|unit*:*|alpha:*|beta:*|crm:*)                                                      cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.ora_env; /bin/bash -s tpibase64 $args_b64" ;;
+  jet:*|vhost*:*)                                                                           cat $wtpi | $SSHCMD oracle@$P1_ "[ -f /etc/profile.ora ] && source /etc/profile.ora; [ -f /mnt/ramdisk/cfg/profile.ora ] && source /mnt/ramdisk/cfg/profile.ora; /bin/bash -s tpibase64 $args_b64" ;;
+#  cft*:*|kik*:*|bd*:*|prov*:*)                                                              cat $wtpi | $SSHCMD oracle@$P1_ ". ~/db12kik.env; /bin/bash -s $sid $args" ;;
+#  EPS*:*|creditc:*)                                                                         cat $wtpi | $SSHCMD oracle@$P1_ ". ~/db12.env; /bin/bash -s $sid $args" ;;
+#  KIKOPDR:*)                                                                                cat $wtpi | $SSHCMD oracle@$P1_ ". ~/db11.env; /bin/bash -s $sid $args" ;;
+#  s-dtln-wmsdb*:*|db06.wms.korablik.ru:*)                                                   cat $wtpi | $SSHCMD $P1_ "sudo -i -u oracle /bin/bash -s $sid $args" ;;
+#  *:SMARTFE|*:SVFE*)                                                                        cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.profile >/dev/null 2>&1; /bin/bash -s $sid $args" ;;
+#  pluton:*|mercury:*|dsacs:*|sdsacs:*)                                                      cat $wtpi | $SSHCMD tal@$P1_ "sudo -i -u oracle 2>/dev/null /bin/bash -s $sid $args" ;;
+  pluton:*|mercury:*|dsacs:*|sdsacs:*)                                                      cat $wtpi | $SSHCMD tal@$P1_ "sudo -i -u oracle /bin/bash -s tpibase64 $args_b64" ;;   # sudo -i cuts escaped characters, therefore I use base64 with 1 parameter="tpibase64"
+  ares*:*|krios*:*|helios:*|dsrestore*:*) sidlow=$(awk '{print tolower($1)}' <<< $sid);     cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.profile; [ -f /adm/env.${sidlow} ] && . /adm/env.${sidlow} ; /bin/bash -s tpibase64 $args_b64" ;;
+  [0-9]*:*)                                                                                 cat $wtpi | $SSHCMD $P1_ ". ~/.bash_profile ; /bin/bash -s tpibase64 $args_b64" ;;
+  *:*)                                                                                      cat $wtpi | $SSHCMD oracle@$P1_ ". ~/.bash_profile ; /bin/bash -s tpibase64 $args_b64" ;;
 esac
 
 exit
+
+#######################################################
+
+host=$1
+HST=$host
+# HST=`awk '$2=="'$host'"{print $1}' /app/start/etc/hosts`
+# if [ "$HST" = "" ]; then
+#  HST=$host
+# fi
+shift
+args=$*
+case $host in
+  askona*|192.168.1.132|192.168.1.131) username=grid ;;
+#  [z]14-*|kem-ora01)
+#        echo "args:"$args
+#        args2=$(echo "$args" | sed  's|\$|\\\\$|g')
+#        echo "args2:"$args2
+#        cat $wtpi | ssh -o ServerAliveInterval=30 dbservice@172.16.83.38 -t ssh -o ServerAliveInterval=30 -l oracle $P1_ "/bin/bash -s $args"
+#        cat $wtpi | eval ssh -o ServerAliveInterval=30 t.mukhametshin@172.16.83.38 -t ssh -o ServerAliveInterval=30 -l oracle $P1_ '/bin/bash -s $args2'
+#  ;;
+    #alias $P1_ >/dev/null 2>&1
+    #rc=$?
+    #if [ "$rc" -eq 0 ]; then
+    #  cat $wtpi | eval $P1_ '/bin/sh -s $args'
+    #else
+  *) username=oracle ;;
+esac
+cat ~/tal/tpi | $SSHCMD $username@$HST "/bin/bash -s $args"
+exit
+
 

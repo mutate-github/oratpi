@@ -1,56 +1,26 @@
 #!/bin/bash
-
-#[Machine1]
-#app=version1
-#[Machine2]
-#app=version1
-#app=version2
-#[Machine3]
-#app=version1
-#app=version3
-
-# iniget file.ini --list
-# $ iniget file.ini Machine3
-# $ iniget file.ini Machine1 app
-
-function iniget() {
-  if [[ $# -lt 2 || ! -f $1 ]]; then
-    echo "usage: iniget <file> [--list|<section> [key]]"
-    return 1
-  fi
-  local inifile=$1
-
-  if [ "$2" == "--list" ]; then
-    for section in $(sed '/ *#/d; /^ *$/d' | grep "\[" | sed -e "s#\[##g" | sed -e "s#\]##g"); do
-      echo $section
-    done < <(cat $inifile)
-    return 0
-  fi
-
-  local section=$2
-  local key
-  [ $# -eq 3 ] && key=$3
-
-  # https://stackoverflow.com/questions/49399984/parsing-ini-file-in-bash
-  # This awk line turns ini sections => [section-name]key=value
-#  local lines=$(awk '/\[/{prefix=$0; next} $1{print prefix $0}' $inifile)
-  local lines=$(awk '/\[/{prefix=$0; gsub(/[ \t]+$/,"",prefix); next} $1{print prefix $0}' $inifile | sed '/ *#/d; /^ *$/d')
-  while read line; do
-    if [[ "$line" =~ \[$section\]* ]]; then
-      local keyval=$(sed -e "s/^\[$section\]//" <<< $line)
-      if [[ -z "$key" ]]; then
-        echo $keyval
-      else
-        if [[ "$keyval" = $key=* ]]; then
-          echo $(sed -e "s/^$key=//" <<< $keyval)
-        fi
-      fi
-    fi
-  done < <(echo "$lines")
+# usage: iniget.sh <file> --list | <section> [key]
+iniget() {
+  local file=$1 sec=$2 key=${3-}
+  [[ -f $file && -n $sec ]] || { echo "usage: iniget <file> [--list|<section> [key]]" >&2; return 1; }
+  awk -v sec="$sec" -v key="$key" '
+    { sub(/\r$/, "") }                                  # CRLF
+    /^[ \t]*[#;]/ || /^[ \t]*$/ { next }                # комментарий только с начала строки
+    /^[ \t]*\[[^]]+\][ \t]*([#;].*)?$/ {                # заголовок секции
+      s = $0; sub(/^[ \t]*\[/, "", s); sub(/\].*$/, "", s)
+      if (sec == "--list") print s
+      insec = (s == sec); next                          # точное сравнение
+    }
+    insec {
+      line = $0; sub(/^[ \t]+/, "", line)
+      if (key == "") { print line; next }
+      p = index(line, "="); if (!p) next
+      k = substr(line, 1, p - 1); sub(/[ \t]+$/, "", k)
+      if (k == key) { v = substr(line, p + 1); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v }
+    }' "$file"
 }
-
-
-BASEDIR=$(dirname $0)
-
-iniget $BASEDIR/$1 $2 $3
+BASEDIR=$(dirname "$0")
+cfg=$1; [[ $cfg = /* ]] || cfg=$BASEDIR/$cfg
+shift
+iniget "$cfg" "$@"
 

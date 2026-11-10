@@ -42,7 +42,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 
     if [ -s $LOGF_TRG ]; then
       echo "Fired: "$0"\n" > $LOGF_HEAD
-      CUR_VAL=$((tail -1 | awk '{print $NF}')<"$LOGF_TRG")
+      CUR_VAL=$( (tail -1 | awk '{print $NF}')<"$LOGF_TRG" )
       cat $LOGF_HEAD $LOGF | $BASEDIR/send_msg.sh $CONFIG $SCRIPT_NAME $HOST $DB "FRA % usage warning (current: $CUR_VAL %, threshold: $limPER %)"
       rm $LOGF_HEAD
     fi

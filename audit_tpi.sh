@@ -17,7 +17,7 @@ case "$#" in
  3)  SRV="$1"; SID="$2"; DT="$3"; cmd='rtpi' ;;
  *) echo -e  "Usage: 2 or 3 parameters, last parameter is days in past:"
     echo -e  "For local oracle DB:   ./audit_tpi.sh ORACLE_SID NUM_DAYS"
-#    echo -e  "For remote oracle DB:  ./audit_tpi.sh my_server01 ORACLE_SID NUM_DAYS"
+    echo -e  "For remote oracle DB:  ./audit_tpi.sh my_server01 ORACLE_SID NUM_DAYS"
     exit 127
     ;;
 esac
@@ -70,6 +70,7 @@ $cmd $SRV $SID s 'AUD$'
 $cmd $SRV $SID audit
 # remove from tpi  audit login
 # $cmd $SRV $SID audit login
+# thiw work only remote exec:
 cat audit_login.sh | ssh $SRV "/bin/bash -s $SID"
 $cmd $SRV $SID audit maxcon
 $cmd $SRV $SID audit 1017
@@ -86,23 +87,23 @@ echo -e  '======================================================================
 $cmd $SRV $SID rman cfg
 $cmd $SRV $SID rman 7
 echo -e  '========================================================================================================================================================================================'
-$cmd $SRV $SID u % role DBA
-$cmd $SRV $SID u % sys RESTRICTED SESSION
-$cmd $SRV $SID u % sys ALTER SYSTEM
-$cmd $SRV $SID u % sys ALTER DATABASE
-$cmd $SRV $SID u % sys ALTER DATABASE
-$cmd $SRV $SID u % sys DROP ANY TRIGGER
-$cmd $SRV $SID u % sys DROP ANY PROCEDURE
-$cmd $SRV $SID u % sys DROP ANY TABLE
-$cmd $SRV $SID u % sys ALTER ANY PROCEDURE
-$cmd $SRV $SID u % sys DELETE ANY TABLE
-$cmd $SRV $SID u % sys UPDATE ANY TABLE
-$cmd $SRV $SID u % sys INSERT ANY TABLE
-$cmd $SRV $SID u % sys CREATE USER
-$cmd $SRV $SID u % sys BECOME USER
-$cmd $SRV $SID u % sys ALTER USER
-$cmd $SRV $SID u % sys DROP USER
-$cmd $SRV $SID u PUBLIC tab %
+$cmd $SRV $SID u % dba_role_privs DBA
+$cmd $SRV $SID u % dba_sys_privs RESTRICTED SESSION
+$cmd $SRV $SID u % dba_sys_privs ALTER SYSTEM
+$cmd $SRV $SID u % dba_sys_privs ALTER DATABASE
+$cmd $SRV $SID u % dba_sys_privs ALTER DATABASE
+$cmd $SRV $SID u % dba_sys_privs DROP ANY TRIGGER
+$cmd $SRV $SID u % dba_sys_privs DROP ANY PROCEDURE
+$cmd $SRV $SID u % dba_sys_privs DROP ANY TABLE
+$cmd $SRV $SID u % dba_sys_privs ALTER ANY PROCEDURE
+$cmd $SRV $SID u % dba_sys_privs DELETE ANY TABLE
+$cmd $SRV $SID u % dba_sys_privs UPDATE ANY TABLE
+$cmd $SRV $SID u % dba_sys_privs INSERT ANY TABLE
+$cmd $SRV $SID u % dba_sys_privs CREATE USER
+$cmd $SRV $SID u % dba_sys_privs BECOME USER
+$cmd $SRV $SID u % dba_sys_privs ALTER USER
+$cmd $SRV $SID u % dba_sys_privs DROP USER
+$cmd $SRV $SID u PUBLIC dba_tab_privs %
 echo -e  '========================================================================================================================================================================================'
 echo -e  "$cmd $SRV $SID o invalid | sed  -e '/Elapsed/q'"
 $cmd $SRV $SID o invalid | sed  -e '/Elapsed/q'
