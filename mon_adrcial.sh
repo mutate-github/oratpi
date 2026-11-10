@@ -7,9 +7,12 @@ FILEPATH=$0
 BASEDIR=${FILEPATH%/*}
 SCRIPT_NAME=${FILEPATH##*/}
 LOCKFILE="/tmp/${SCRIPT_NAME}_${CLIENT}.pid"
-trap 'rm -f $LOCKFILE' EXIT TERM INT
 echo "Starting $0 at: "$(date +%d/%m/%y-%H:%M:%S)
 if ! $BASEDIR/checkalrun.sh $LOCKFILE $$; then exit 1; fi
+trap 'rm -f "$LOCKFILE"' EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 BASEDIR=$(dirname $0)
 CONFIG="mon.ini"
