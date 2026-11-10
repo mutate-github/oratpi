@@ -53,7 +53,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
 #    $WRTPI $HOST $DB db | sed -n '/V$INSTANCE:/{p;n;p;n;n;p;}' > $LOGF
     $WRTPI $HOST $DB db | awk '/^ORA-01034/ && !seen++ { print }  /V\$INSTANCE:/ { print; getline; print; getline; getline; print }' > $LOGF
     
-    if [[ -f $LOGF ]]; then
+    if [[ -s $LOGF ]]; then
       LOGF_DB_DIFF=$LOGDIR/mon_db_${HOST}_${DB}_db_diff.log
       LOGF_DB_OLD=$LOGDIR/mon_db_${HOST}_${DB}_db_old.log
       touch $LOGF_DB_OLD
