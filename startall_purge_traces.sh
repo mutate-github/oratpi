@@ -55,7 +55,7 @@ sid=\$1
 # 5760  - 4 days
 # 10080 - 7 days
 
-age=1440         # min
+age=10080         # min
 audit=7          # days
 # size_lim=1073741824c    # size limit ~1Gb for lsn.log in bytes -nc
 size_lim=536870912c    # size limit ~500Mb for lsn.log in bytes -nc
