@@ -53,33 +53,62 @@ start_job_with_timing()
 ) 
 }
 
+sleep_float()
+{
+    sleep $(awk -v min=0.1 -v max=0.5 'BEGIN{srand(); print min+rand()*(max-min)}')
+}
+
 
 echo ""
 echo "START ALL MONITORING ***************************************************************************** "$(date)
 start_job_with_timing mon_ping.sh &
+sleep_float
 start_job_with_timing mon_ssh.sh &
+sleep_float
 start_job_with_timing mon_db.sh &
+sleep_float
 start_job_with_timing mon_tnslsnr.sh &
+sleep_float
 start_job_with_timing mon_url.sh &
+sleep_float
 start_job_with_timing mon_port.sh &
+sleep_float
 start_job_with_timing mon_fs.sh &
+sleep_float
 start_job_with_timing mon_disksp.sh &
+sleep_float
 start_job_with_timing mon_swap.sh &
+sleep_float
 start_job_with_timing mon_load.sh &
+sleep_float
 start_job_with_timing mon_alert.sh &
+sleep_float
 # start_job_with_timing mon_adrcial.sh &
+# sleep_float
 start_job_with_timing mon_fra.sh &
+sleep_float
 start_job_with_timing mon_tbs.sh &
+sleep_float
 start_job_with_timing mon_stb.sh &
+sleep_float
 start_job_with_timing mon_bck.sh &
+sleep_float
 start_job_with_timing mon_db_files.sh &
+sleep_float
 start_job_with_timing mon_reslim.sh &
+sleep_float
 start_job_with_timing mon_resumab.sh &
+sleep_float
 start_job_with_timing mon_pga.sh &
+sleep_float
 start_job_with_timing mon_lock.sh &
+sleep_float
 start_job_with_timing mon_forlog.sh &
+sleep_float
 start_job_with_timing mon_aas.sh &
+sleep_float
 start_job_with_timing mon_oratop.sh &
+sleep_float
 start_job_with_timing kill_sniped.sh &
 wait
 echo "FINISH ALL MONITORING **************************************************************************** "$(date)
