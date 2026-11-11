@@ -32,7 +32,7 @@ SSHCMD=$($BASEDIR/iniget.sh $CONFIG others SSHCMD)
 SET_ENV_F="$BASEDIR/set_env"
 SET_ENV=`cat $SET_ENV_F`
 REPEAT_MINUTES=$($BASEDIR/iniget.sh $CONFIG mail repeat_minutes)
-REPEAT_AT=$($BASEDIR/iniget.sh $CONFIG mail repeat_at)
+REPEAT_AT="+($($BASEDIR/iniget.sh $CONFIG mail repeat_at))"
 SEQ_GAP=$($BASEDIR/iniget.sh $CONFIG threshold STB_SEQ_GAP)
 LAG_MINUTES=$($BASEDIR/iniget.sh $CONFIG threshold STB_LAG_MINUTES)
 [[ -z "$HOST" ]] && HOSTS=$($BASEDIR/iniget.sh $CONFIG servers host) || HOSTS="$HOST"
@@ -118,7 +118,7 @@ EOF
       # find old trg_files more then at $REPEAT_AT minutes
       HH=$(date +%H)
       case "$HH" in
-      "${REPEAT_AT}")
+       ${REPEAT_AT})
          FF=$(find "$TRG_FILE_SEQ_GAP" -mmin +$REPEAT_MINUTES 2>/dev/null | wc -l)
          if [[ "$FF" -eq 1 ]]; then
            CNT=$(head -1 $TRG_FILE_SEQ_GAP)

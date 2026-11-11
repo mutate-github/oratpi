@@ -37,7 +37,7 @@ repeat_trigger()
 {
   hours_since_="$1"
   file_for_touch_="$2"
-  REPEAT_AT=$($BASEDIR/iniget.sh $CONFIG mail repeat_at)
+  REPEAT_AT="+($($BASEDIR/iniget.sh $CONFIG mail repeat_at))"
   HH=$(date +%H)
   case "$HH" in
     ${REPEAT_AT})

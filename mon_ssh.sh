@@ -55,8 +55,7 @@ for HOST in $(xargs -n1 echo <<< "$HOSTS"); do
     else
       echo "$TRG_FILE is exists."
       HH=$(date +%H)
-      REPEAT_AT=$($BASEDIR/iniget.sh $CONFIG mail repeat_at)
-      REPEAT_AT="+($REPEAT_AT)"
+      REPEAT_AT="+($($BASEDIR/iniget.sh $CONFIG mail repeat_at))"
       shopt -s extglob         # enables pattern lists like +(...|...)
       case "$HH" in
         ${REPEAT_AT})
